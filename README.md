@@ -88,6 +88,25 @@ Omada Controller (service)   devices count · one switch per SSID (attribute: ac
 ```
 \* disabled by default (also: uptime).
 
+### Dashboard card: Open Omada · Top WAN
+
+The integration ships its own card (no extra install, no manual resource). It shows the clients
+using the most internet traffic as a bar ranking, read from the gateway DPI.
+
+1. Edit a dashboard → **Add card** → search **Open Omada** → **Open Omada · Top WAN**.
+2. The "Top WAN client" sensor is preselected; optionally change the title or the number of
+   clients (1–5). Hover a row to see download/upload.
+
+```yaml
+type: custom:open-omada-top-wan-card
+entity: sensor.<gateway>_top_wan_client
+title: Top WAN usage   # optional
+max: 5                 # optional, 1–5
+```
+
+After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
+Requires DPI enabled on the gateway.
+
 ### Actions
 
 | Action | Fields |
