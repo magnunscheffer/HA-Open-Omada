@@ -300,17 +300,38 @@
     "step": {
       "init": {
         "title": "Enhanced WAN Control",
-        "description": "As sondas são fixadas em cada WAN por policy routes do Omada criadas e mantidas pela integração (só deste Home Assistant para os IPs das sondas). Cada WAN precisa de alvos próprios (nomes ou IPv4, separados por vírgula). Não use como sonda os servidores DNS configurados numa WAN: o gateway os roteia por conta própria, então não podem ser fixados e são ignorados.",
+        "description": "Mede cada WAN com as próprias sondas e pode inverter WAN primária e backup. A integração cria e mantém policy routes no Omada que fixam as sondas em cada WAN (só deste Home Assistant para os IPs das sondas).",
         "data": {
-          "wan_control": "Ativar Enhanced WAN Control",
-          "probes_wan1": "Sondas da porta WAN 1",
-          "probes_wan2": "Sondas da porta WAN 2",
-          "latency_ms": "Ruim acima da latência mediana (ms)",
-          "interval_s": "Medir a cada (s)",
-          "confirm_tests": "Testes extras para confirmar um resultado ruim",
-          "confirm_interval_s": "Segundos entre testes de confirmação",
-          "cooldown_min": "Mínimo de minutos entre trocas",
-          "failback_min": "Voltar à WAN preferida após ela ficar boa por (min)"
+          "wan_control": "Ativar o Enhanced WAN Control",
+          "probes_wan1": "Sondas da {wan1}",
+          "probes_wan2": "Sondas da {wan2}"
+        },
+        "data_description": {
+          "probes_wan1": "Nomes ou IPv4 separados por vírgula. Não use os servidores DNS configurados numa WAN ({wan_dns}): o gateway os roteia por conta própria, então não podem ser fixados e são ignorados.",
+          "probes_wan2": "Uma sonda só pode ser usada numa WAN."
+        },
+        "sections": {
+          "quality": {
+            "name": "Qualidade",
+            "description": "Quando uma WAN conta como Poor ou Offline.",
+            "data": {
+              "latency_ms": "Poor acima da latência mediana (ms)",
+              "interval_s": "Medir a cada (s)",
+              "confirm_tests": "Testes extras para confirmar um resultado ruim",
+              "confirm_interval_s": "Segundos entre os testes de confirmação"
+            }
+          },
+          "failover": {
+            "name": "Failover",
+            "description": "Usado no modo Automatic e nas sugestões do modo Notify.",
+            "data": {
+              "cooldown_min": "Minutos mínimos entre trocas",
+              "failback_min": "Voltar à WAN preferida depois de boa por (min)"
+            },
+            "data_description": {
+              "failback_min": "Sem interrupção: qualquer resultado diferente de Good zera a contagem."
+            }
+          }
         }
       }
     },

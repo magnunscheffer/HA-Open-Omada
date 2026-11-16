@@ -126,7 +126,8 @@ religar uma WAN PPPoE pode levar 30+ s e trocar o IP público).
 
 Mede a qualidade de **cada** WAN com sondas definidas por você e pode inverter WAN primária e
 backup quando o link em uso piora. Ative em **Configurações → Dispositivos e serviços → Open Omada
-→ Configurar**. Exige gateway com duas WANs em modo **failover** (link backup).
+→ Configurar**. Exige gateway com duas WANs em modo **failover** (link backup) e foi testado com um único gateway
+num único site (veja [Limitações conhecidas](#limitações-conhecidas)).
 
 **Como as sondas são fixadas em cada WAN.** A integração cria e mantém estes objetos no Omada, todos
 com nome `Open Omada probe <id> …`:
@@ -162,12 +163,12 @@ trocas evita oscilação.
 
 | Opção | Padrão |
 |---|---|
-| Sondas da WAN 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
-| Sondas da WAN 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
-| Poor acima da latência mediana | 150 ms |
+| Sondas da WAN na porta 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
+| Sondas da WAN na porta 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
+| Seção *Qualidade*: Poor acima da latência mediana | 150 ms |
 | Medir a cada | 30 s |
 | Testes extras para confirmar / intervalo entre eles | 2 / 5 s |
-| Minutos mínimos entre trocas | 15 |
+| Seção *Failover*: minutos mínimos entre trocas | 15 |
 | Voltar à WAN preferida depois de boa por | 60 min |
 
 Entidades no gateway:
@@ -189,7 +190,9 @@ para receber notificação.
 
 - A Open API **não informa o IP público de cada WAN**; atrás de modem/CGNAT só há o IP privado.
 - **Maior consumo de WAN** exige **DPI** ligado no gateway (Network Security → Application Control).
-- O **Enhanced WAN Control** trata duas WANs em failover (não balanceamento nem 3+ WANs).
+- O **Enhanced WAN Control** trata duas WANs em failover (não balanceamento nem 3+ WANs). Foi
+  testado com **um único gateway num único site**: com vários sites ou gateways, só o primeiro site
+  que tiver um gateway com duas WANs é controlado, e pode não funcionar como esperado.
 - Não baixe a documentação da API do próprio controller (`/v3/api-docs`): pode travá-lo.
 
 ## Problemas

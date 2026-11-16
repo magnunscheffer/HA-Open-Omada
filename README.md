@@ -211,7 +211,8 @@ interval.
 
 Measures the quality of **each** WAN with your own probe targets and can swap the primary and
 backup WAN when the link in use goes bad. Turn it on in **Settings → Devices & services → Open
-Omada → Configure**. It needs a gateway with two WANs in **failover** (link backup) mode.
+Omada → Configure**. It needs a gateway with two WANs in **failover** (link backup) mode, and was tested with a single
+gateway in a single site (see [Known limitations](#known-limitations)).
 
 **How probes are pinned to a WAN.** The integration creates and maintains these Omada objects,
 all named `Open Omada probe <id> …`:
@@ -247,12 +248,12 @@ flapping.
 
 | Option | Default |
 |---|---|
-| Probes for WAN port 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
-| Probes for WAN port 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
-| Poor above median latency | 150 ms |
+| Probes for the WAN on port 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
+| Probes for the WAN on port 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
+| *Quality* section: Poor above median latency | 150 ms |
 | Measure every | 30 s |
 | Extra tests to confirm a bad result / seconds between them | 2 / 5 s |
-| Minimum minutes between switches | 15 |
+| *Failover* section: minimum minutes between switches | 15 |
 | Return to the preferred WAN after it is good for | 60 min |
 
 Entities on the gateway:
@@ -283,7 +284,9 @@ Control measures on its own interval (30 s by default).
   CGNAT) only that address is available.
 - **Top WAN clients** need **DPI** enabled on the gateway (Omada → Network Security → Application
   Control). Per-client traffic without DPI includes LAN traffic, so it is not used.
-- **Enhanced WAN Control** handles two WANs in failover mode (not load balancing or 3+ WANs).
+- **Enhanced WAN Control** handles two WANs in failover mode (not load balancing or 3+ WANs). It
+  was tested with **one gateway in one site**: with several sites or gateways only the first site
+  that has a gateway with two WANs is controlled, and it may not work as expected.
 - PoE "powering" status depends on what the controller reports for each switch model.
 - Do not download the API docs from the controller itself (`/v3/api-docs`): generating them can
   hang the controller. Use TP-Link's published copy.

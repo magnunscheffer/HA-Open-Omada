@@ -18,6 +18,14 @@ OPTIONS = {"wan_control": True, "probes_wan1": "1.1.1.1, 192.0.2.10", "probes_wa
            "cooldown_min": 15, "failback_min": 60}
 
 
+def _form(opts: dict) -> dict:
+    """The options form groups the numbers in the 'quality' and 'failover' sections."""
+    quality = ("latency_ms", "interval_s", "confirm_tests", "confirm_interval_s")
+    failover = ("cooldown_min", "failback_min")
+    top = {k: v for k, v in opts.items() if k not in quality + failover}
+    return {**top, "quality": {k: opts[k] for k in quality}, "failover": {k: opts[k] for k in failover}}
+
+
 @pytest.fixture
 async def setup(hass: HomeAssistant, fake_client):
     fake_client.two_wans = True
@@ -132,7 +140,8 @@ async def test_turning_the_feature_off_removes_the_objects(hass, fake_client, se
     entry, ctl, _ = setup
     with patch("homeassistant.components.network.async_get_source_ip", return_value="192.0.2.50"):
         result = await hass.config_entries.options.async_init(entry.entry_id)
-        result = await hass.config_entries.options.async_configure(result["flow_id"], {**OPTIONS, "wan_control": False})
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _form({**OPTIONS, "wan_control": False}))
         await hass.async_block_till_done()
     assert result["type"] == "create_entry"
     assert not fake_client.groups
@@ -143,7 +152,7 @@ async def test_options_reject_the_same_probe_on_both_wans(hass, fake_client, set
     entry, ctl, _ = setup
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {**OPTIONS, "probes_wan2": "1.1.1.1"})
+        result["flow_id"], _form({**OPTIONS, "probes_wan2": "1.1.1.1"}))
     assert result["errors"] == {"base": "probes_overlap"}
 
 
@@ -175,3 +184,16 @@ async def test_probe_routes_are_not_exposed_as_switches(hass, fake_client, setup
     assert f"{GW}_policy_route_pr1" in uids
     probe_ids = [r["id"] for r in fake_client.routes]
     assert probe_ids and not any(f"{GW}_policy_route_{rid}" in uids for rid in probe_ids)
+
+
+async def test_options_form_sections_names_and_flat_storage(hass, fake_client, setup):
+    entry, ctl, _ = setup
+    fake_client.wan_dns = {"192.0.2.53"}
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["description_placeholders"] == {"wan1": "WAN1", "wan2": "WAN2", "wan_dns": "192.0.2.53"}
+    with patch.object(hass.config_entries, "async_reload", return_value=True):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _form({**OPTIONS, "latency_ms": 200, "failback_min": 30}))
+    assert result["type"] == "create_entry"
+    assert entry.options["latency_ms"] == 200 and entry.options["failback_min"] == 30
+    assert "quality" not in entry.options and "failover" not in entry.options

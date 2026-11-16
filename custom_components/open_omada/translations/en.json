@@ -300,17 +300,38 @@
     "step": {
       "init": {
         "title": "Enhanced WAN Control",
-        "description": "Probes are pinned to each WAN with Omada policy routes created and kept by the integration (only this Home Assistant host to the probe IPs). Each WAN needs its own targets (host names or IPv4, comma separated). Do not use the DNS servers set on a WAN as probes: the gateway routes them itself, so they cannot be pinned and are skipped.",
+        "description": "Measures each WAN with its own probes and can swap the primary and backup WAN. The integration creates and keeps Omada policy routes that pin the probes to each WAN (only from this Home Assistant host to the probe IPs).",
         "data": {
           "wan_control": "Enable Enhanced WAN Control",
-          "probes_wan1": "Probes for WAN port 1",
-          "probes_wan2": "Probes for WAN port 2",
-          "latency_ms": "Poor above median latency (ms)",
-          "interval_s": "Measure every (s)",
-          "confirm_tests": "Extra tests to confirm a bad result",
-          "confirm_interval_s": "Seconds between confirmation tests",
-          "cooldown_min": "Minimum minutes between switches",
-          "failback_min": "Return to the preferred WAN after it is good for (min)"
+          "probes_wan1": "Probes for {wan1}",
+          "probes_wan2": "Probes for {wan2}"
+        },
+        "data_description": {
+          "probes_wan1": "Host names or IPv4, comma separated. Do not use the DNS servers set on a WAN ({wan_dns}): the gateway routes them itself, so they cannot be pinned and are skipped.",
+          "probes_wan2": "A probe can only be used on one WAN."
+        },
+        "sections": {
+          "quality": {
+            "name": "Quality",
+            "description": "When a WAN counts as Poor or Offline.",
+            "data": {
+              "latency_ms": "Poor above median latency (ms)",
+              "interval_s": "Measure every (s)",
+              "confirm_tests": "Extra tests to confirm a bad result",
+              "confirm_interval_s": "Seconds between confirmation tests"
+            }
+          },
+          "failover": {
+            "name": "Failover",
+            "description": "Used in Automatic mode, and for the suggestions in Notify mode.",
+            "data": {
+              "cooldown_min": "Minimum minutes between switches",
+              "failback_min": "Return to the preferred WAN after it is good for (min)"
+            },
+            "data_description": {
+              "failback_min": "In a row: any result that is not Good restarts the count."
+            }
+          }
         }
       }
     },

@@ -122,3 +122,5 @@ trazem apenas o IP visto pelo controller local. Quando a WAN recebe IP global
   a integração ignora sondas nesses IPs.
 - Hosts com DNS rotativo (ex.: `ec2.sa-east-1.amazonaws.com`) são resolvidos na sincronização (a
   cada 1 h) e o grupo de IP é atualizado.
+- Testado só com **um gateway num site**. Com vários sites/gateways, `WanControl._site()` usa o
+  primeiro site cujo gateway tem 2+ WANs; o resto não é controlado.

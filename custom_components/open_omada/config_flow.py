@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_URL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -107,8 +108,30 @@ def _num(low: float, high: float, step: float = 1) -> NumberSelector:
     return NumberSelector(NumberSelectorConfig(min=low, max=high, step=step, mode=NumberSelectorMode.BOX))
 
 
+QUALITY_KEYS = (CONF_LATENCY, CONF_INTERVAL, CONF_CONFIRM_TESTS, CONF_CONFIRM_INTERVAL)
+FAILOVER_KEYS = (CONF_COOLDOWN, CONF_FAILBACK)
+
+
 class OmadaOptionsFlow(OptionsFlow):
-    """Enhanced WAN Control settings."""
+    """Enhanced WAN Control settings (stored flat; the form groups them in sections)."""
+
+    async def _placeholders(self) -> dict[str, str]:
+        """Real WAN names and the WAN DNS servers (which cannot be probes) for the form texts."""
+        names = {1: "WAN port 1", 2: "WAN port 2"}
+        dns = ""
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        data = getattr(coordinator, "data", None)
+        for site in getattr(data, "sites", None) or []:
+            if site.gateways and len(site.gateways[0].wans) >= 2:
+                for wan in site.gateways[0].wans:
+                    if wan.port in names and wan.name:
+                        names[wan.port] = wan.name
+                try:
+                    dns = ", ".join(sorted(await coordinator.client.get_wan_dns_servers(site.site.id)))
+                except OmadaError:
+                    LOGGER.debug("Could not read the WAN DNS servers for the options form")
+                break
+        return {"wan1": names[1], "wan2": names[2], "wan_dns": dns or "none found"}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         opts = {**WAN_CONTROL_DEFAULTS,
@@ -116,6 +139,10 @@ class OmadaOptionsFlow(OptionsFlow):
                 **self.config_entry.options}
         errors: dict[str, str] = {}
         if user_input is not None:
+            flat = {k: v for k, v in user_input.items() if k not in ("quality", "failover")}
+            flat.update(user_input.get("quality") or {})
+            flat.update(user_input.get("failover") or {})
+            user_input = {**opts, **flat}
             p1, p2 = parse_targets(user_input[CONF_PROBES_WAN1]), parse_targets(user_input[CONF_PROBES_WAN2])
             if user_input[CONF_WAN_CONTROL] and (not p1 or not p2):
                 errors["base"] = "probes_required"
@@ -130,19 +157,22 @@ class OmadaOptionsFlow(OptionsFlow):
                     except OmadaError:
                         LOGGER.exception("Could not remove the Enhanced WAN Control objects")
                 return self.async_create_entry(data=data)
-            opts = {**opts, **user_input}
+            opts = user_input
+        limits = {CONF_LATENCY: (20, 2000), CONF_INTERVAL: (15, 600), CONF_CONFIRM_TESTS: (0, 5),
+                  CONF_CONFIRM_INTERVAL: (1, 60), CONF_COOLDOWN: (1, 240), CONF_FAILBACK: (1, 1440)}
+
+        def group(keys: tuple[str, ...]) -> vol.Schema:
+            return vol.Schema({vol.Required(k, default=opts[k]): _num(*limits[k]) for k in keys})
+
         schema = vol.Schema({
             vol.Required(CONF_WAN_CONTROL, default=opts[CONF_WAN_CONTROL]): bool,
             vol.Required(CONF_PROBES_WAN1, default=opts[CONF_PROBES_WAN1]): str,
             vol.Required(CONF_PROBES_WAN2, default=opts[CONF_PROBES_WAN2]): str,
-            vol.Required(CONF_LATENCY, default=opts[CONF_LATENCY]): _num(20, 2000),
-            vol.Required(CONF_INTERVAL, default=opts[CONF_INTERVAL]): _num(15, 600),
-            vol.Required(CONF_CONFIRM_TESTS, default=opts[CONF_CONFIRM_TESTS]): _num(0, 5),
-            vol.Required(CONF_CONFIRM_INTERVAL, default=opts[CONF_CONFIRM_INTERVAL]): _num(1, 60),
-            vol.Required(CONF_COOLDOWN, default=opts[CONF_COOLDOWN]): _num(1, 240),
-            vol.Required(CONF_FAILBACK, default=opts[CONF_FAILBACK]): _num(1, 1440),
+            vol.Required("quality"): section(group(QUALITY_KEYS), {"collapsed": True}),
+            vol.Required("failover"): section(group(FAILOVER_KEYS), {"collapsed": True}),
         })
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors,
+                                    description_placeholders=await self._placeholders())
 
 
 class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
