@@ -170,6 +170,9 @@
     },
     "client_not_found": {
       "message": "Nenhum cliente Omada com o MAC {mac} foi encontrado."
+    },
+    "item_gone": {
+      "message": "Este item não existe mais no controller; tente de novo após a próxima atualização."
     }
   },
   "services": {

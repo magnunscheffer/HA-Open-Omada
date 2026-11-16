@@ -207,3 +207,26 @@ async def test_entities_built_once_and_ids_predicted(hass: HomeAssistant, fake_c
     finally:
         sensor.OmadaDeviceSensor.__init__ = original
     assert "Unique id mismatch" not in caplog.text
+
+
+async def test_poe_right_after_port_toggle_uses_live_profile(hass: HomeAssistant, fake_client, config_entry) -> None:
+    """Regression: PoE off 4 s after port off/on re-applied the stale 'Disable' profile."""
+    await _setup(hass, config_entry)
+    port_eid = _eid(hass, "switch", f"{SW}_port1_enabled")
+    poe_eid = _eid(hass, "switch", f"{SW}_port1_poe")
+    await hass.services.async_call("switch", "turn_off", {"entity_id": port_eid}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": port_eid}, blocking=True)
+    # No coordinator refresh in between: the snapshot still says "Disable".
+    await hass.services.async_call("switch", "turn_off", {"entity_id": poe_eid}, blocking=True)
+    poe_call = next(c for c in fake_client.calls if c[0] == "poe_override")
+    assert poe_call[3] == "p-trunk"  # live profile, not the stale p-dis
+
+
+async def test_rule_toggle_puts_the_live_rule(hass: HomeAssistant, fake_client, config_entry) -> None:
+    """A rule edited in Omada after the last poll must not be overwritten with the old copy."""
+    await _setup(hass, config_entry)
+    fake_client.acl_live_description = "Deny-DMZ (edited in Omada)"
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": _eid(hass, "switch", f"{GW}_acl_acl1")}, blocking=True
+    )
+    assert fake_client.calls[-1] == ("acl", "Deny-DMZ (edited in Omada)", False)

@@ -29,6 +29,8 @@ class FakeClient:
         self.port1_profile = "p-trunk"
         self.port1_tags = 0
         self.port1_poe = 1
+        self.port1_override = False
+        self.acl_live_description = "Deny-DMZ"
         self.fail_profiles = False
         self.fail_dpi_auth = False
         self.hide_ap = False
@@ -81,9 +83,31 @@ class FakeClient:
         self.calls.append(("poe_override", port, on, profile_id, native_network_id, network_tags_setting))
         if port == 1:
             self.port1_poe = int(on)
+            self.port1_override = True
 
     async def set_switch_port_follow_profile(self, site, mac, port, *, port_name, profile_id):
         self.calls.append(("follow_profile", port, profile_id))
+        if port == 1:
+            self.port1_override = False
+
+    async def get_switch_port_live(self, site, mac, port):
+        if mac != SW:
+            return None
+        if port == 1:
+            return {"switchMac": SW, "port": 1, "portName": "FW1", "profileId": self.port1_profile,
+                    "profileOverrideEnable": self.port1_override, "nativeNetworkId": "net1",
+                    "networkTagsSetting": self.port1_tags}
+        return {"switchMac": SW, "port": 2, "portName": "P2", "profileId": "p-all",
+                "profileOverrideEnable": False, "nativeNetworkId": "net1", "networkTagsSetting": 0}
+
+    async def get_rule_live(self, site, kind, rule_id):
+        rows = {"acl": await self.get_gateway_acls(site), "policy_route": await self.get_policy_routes(site),
+                "port_forward": await self.get_port_forwardings(site)}[kind]
+        row = next((r for r in rows if r["id"] == rule_id), None)
+        return {**row, "description": self.acl_live_description} if row and kind == "acl" else row
+
+    async def set_gateway_acl_enabled(self, site, acl, on):
+        self.calls.append(("acl", acl.get("description"), on))
 
     async def get_lan_profiles(self, site):
         if self.fail_profiles:

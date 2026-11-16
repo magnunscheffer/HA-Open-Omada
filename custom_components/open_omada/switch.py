@@ -136,15 +136,19 @@ class OmadaRuleSwitch(OmadaGatewayChild, _OptimisticSwitch):
         return {"index": rule.index}
 
     async def _set(self, on: bool) -> None:
-        site_id, kind, _ = self._key
-        raw = self.coordinator.rules[self._key][1].raw
+        site_id, kind, rule_id = self._key
         client = self.coordinator.client
-        if kind == "acl":
-            await self._call(client.set_gateway_acl_enabled(site_id, raw, on), on)
-        elif kind == "port_forward":
-            await self._call(client.set_port_forwarding_enabled(site_id, raw, on), on)
-        else:
-            await self._call(client.set_policy_route_enabled(site_id, raw, on), on)
+
+        async def write() -> None:
+            # Re-read the rule: a PUT of a 60 s old copy would undo recent edits made in Omada.
+            raw = await client.get_rule_live(site_id, kind, rule_id)
+            if raw is None:
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key="item_gone")
+            setter = {"acl": client.set_gateway_acl_enabled, "port_forward": client.set_port_forwarding_enabled,
+                      "policy_route": client.set_policy_route_enabled}[kind]
+            await setter(site_id, raw, on)
+
+        await self._call(write(), on)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._set(True)
@@ -198,30 +202,39 @@ class OmadaPortSwitch(_PortEntity, _OptimisticSwitch):
     def _key(self) -> str:
         return f"{self.mac}_{self.port}"
 
+    async def _live(self) -> dict:
+        """Port config read now: the snapshot can be up to a minute (or one action) old."""
+        live = await self.coordinator.client.get_switch_port_live(self.site_id, self.mac, self.port)
+        if live is None or not live.get("profileId"):
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="item_gone")
+        return live
+
     async def _apply(self, on: bool) -> None:
         site = self.ref.site
         client = self.coordinator.client
         port = self._port
+        live = await self._live()
+        name = live.get("portName") or port.name
+        override = bool(live.get("profileOverrideEnable"))
+        current = live["profileId"]
         if on:
             target = self.coordinator.port_profiles.get(self._key) or site.default_profile_id
             if target is None:
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="no_profile")
-            if port.profile_id != target:
+            if current != target:
                 await client.set_switch_port_profile(
-                    self.site_id, self.mac, self.port, target,
-                    port_name=port.name, profile_override=port.profile_override,
+                    self.site_id, self.mac, self.port, target, port_name=name, profile_override=override
                 )
             if not port.status_on:
                 await client.set_switch_port_status(self.site_id, self.mac, self.port, True)
         else:
             if site.disable_profile_id is None:
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="no_disable_profile")
-            if port.profile_id and port.profile_id != site.disable_profile_id:
-                self.coordinator.port_profiles[self._key] = port.profile_id
+            if current != site.disable_profile_id:
+                self.coordinator.port_profiles[self._key] = current
                 self.coordinator.save_port_profiles()
             await client.set_switch_port_profile(
-                self.site_id, self.mac, self.port, site.disable_profile_id,
-                port_name=port.name, profile_override=port.profile_override,
+                self.site_id, self.mac, self.port, site.disable_profile_id, port_name=name, profile_override=override
             )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -260,20 +273,26 @@ class OmadaPoeSwitch(_PortEntity, _OptimisticSwitch):
 
     async def _apply(self, on: bool) -> None:
         port, client, coord = self._port, self.coordinator.client, self.coordinator
+        live = await client.get_switch_port_live(self.site_id, self.mac, self.port)
+        if live is None or not live.get("profileId"):
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="item_gone")
+        name = live.get("portName") or port.name
+        profile_id = live["profileId"]
+        override = bool(live.get("profileOverrideEnable"))
+        native, tags = live.get("nativeNetworkId"), live.get("networkTagsSetting")
         ours = self._key in coord.poe_override_ports
-        if port.profile_override and not ours:
+        if override and not ours:
             await client.set_switch_port_poe(self.site_id, self.mac, self.port, on)
             return
-        if port.network_tags_setting not in (0, 1) or not port.profile_id or not port.native_network_id:
+        if tags not in (0, 1) or not native:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="poe_needs_override")
         await client.set_switch_port_poe_via_override(
             self.site_id, self.mac, self.port, on,
-            port_name=port.name, profile_id=port.profile_id,
-            native_network_id=port.native_network_id, network_tags_setting=port.network_tags_setting,
+            port_name=name, profile_id=profile_id, native_network_id=native, network_tags_setting=tags,
         )
         if on:
             await client.set_switch_port_follow_profile(
-                self.site_id, self.mac, self.port, port_name=port.name, profile_id=port.profile_id
+                self.site_id, self.mac, self.port, port_name=name, profile_id=profile_id
             )
             coord.poe_override_ports.discard(self._key)
         else:

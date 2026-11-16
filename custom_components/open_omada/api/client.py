@@ -291,6 +291,20 @@ class OmadaClient:
         """PoE capability and live power of every switch port of the site."""
         return await self.get_paged(self._site(site_id, "/switches/ports/poe-info"))
 
+    async def get_switch_port_live(self, site_id: str, mac: str, port: int) -> dict | None:
+        """Current config of one port, read now (writes must not rely on a 60 s old snapshot)."""
+        mac = format_mac(mac)
+        for row in await self.get_switch_ports_overview(site_id):
+            if row.get("switchMac") == mac and row.get("port") == port:
+                return row
+        return None
+
+    async def get_rule_live(self, site_id: str, kind: str, rule_id: str) -> dict | None:
+        """Current full object of an ACL / policy route / port forward, read right before a PUT."""
+        getter = {"acl": self.get_gateway_acls, "policy_route": self.get_policy_routes,
+                  "port_forward": self.get_port_forwardings}[kind]
+        return next((r for r in await getter(site_id) if r.get("id") == rule_id), None)
+
     async def get_switch_ports_overview(self, site_id: str) -> list[dict]:
         """Config summary of every switch port of the site (profile, override, VLAN mode)."""
         return await self.get_paged(self._site(site_id, "/switches/ports/overview"))
