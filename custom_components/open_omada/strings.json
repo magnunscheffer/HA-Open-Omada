@@ -11,7 +11,7 @@
           "verify_ssl": "Verify SSL certificate"
         },
         "data_description": {
-          "url": "Controller address, e.g. https://omada.local:8043",
+          "url": "Controller address, e.g. {example_url}",
           "client_id": "From the Open API application in the Omada controller.",
           "client_secret": "From the Open API application in the Omada controller.",
           "verify_ssl": "Disable for controllers with a self-signed certificate."
@@ -32,6 +32,9 @@
           "client_id": "Client ID",
           "client_secret": "Client Secret",
           "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "Controller address, e.g. {example_url}"
         }
       }
     },

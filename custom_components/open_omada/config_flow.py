@@ -13,6 +13,8 @@ from homeassistant.core import HomeAssistant
 from .api import OmadaAuthError, OmadaConnectionError, OmadaError
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER
 
+PLACEHOLDERS = {"example_url": "https://omada.local:8043"}
+
 USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_URL): str,
@@ -68,6 +70,7 @@ class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(USER_SCHEMA, user_input),
             errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
@@ -109,4 +112,5 @@ class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(USER_SCHEMA, user_input or entry.data),
             errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )

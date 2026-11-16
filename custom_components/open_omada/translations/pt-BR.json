@@ -11,7 +11,7 @@
           "verify_ssl": "Verificar certificado SSL"
         },
         "data_description": {
-          "url": "Endereço do controller, ex.: https://omada.local:8043",
+          "url": "Endereço do controller, ex.: {example_url}",
           "client_id": "Do aplicativo Open API no controller Omada.",
           "client_secret": "Do aplicativo Open API no controller Omada.",
           "verify_ssl": "Desative para controllers com certificado autoassinado."
@@ -32,6 +32,9 @@
           "client_id": "Client ID",
           "client_secret": "Client Secret",
           "verify_ssl": "Verificar certificado SSL"
+        },
+        "data_description": {
+          "url": "Endereço do controller, ex.: {example_url}"
         }
       }
     },
