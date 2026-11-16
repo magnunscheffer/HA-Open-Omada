@@ -21,7 +21,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import OmadaAuthError, OmadaConnectionError, OmadaError
-from .api.wanprobe import DEFAULT_PROBES, parse_targets
+from .api.wanprobe import DEFAULT_PROBES, MAX_PROBES, parse_targets
 from .const import (
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
@@ -146,6 +146,8 @@ class OmadaOptionsFlow(OptionsFlow):
             p1, p2 = parse_targets(user_input[CONF_PROBES_WAN1]), parse_targets(user_input[CONF_PROBES_WAN2])
             if user_input[CONF_WAN_CONTROL] and (not p1 or not p2):
                 errors["base"] = "probes_required"
+            elif len(p1) > MAX_PROBES or len(p2) > MAX_PROBES:
+                errors["base"] = "probes_too_many"
             elif set(p1) & set(p2):
                 errors["base"] = "probes_overlap"  # one IP cannot be pinned to both WANs
             else:

@@ -140,6 +140,11 @@ com nome `Open Omada probe <id> …`:
 Só o tráfego do Home Assistant para os IPs das sondas é afetado. As rotas das sondas não aparecem
 como switches. Desativar o recurso, ou remover a integração, apaga esses objetos.
 
+**Sondas por WAN:** de 1 a 10. Use **3 ou mais**, e número ímpar é melhor: com uma sonda só, um
+destino fora do ar faz a WAN inteira parecer ruim. Quando sobram menos de 3 sondas válidas, aparece
+um aviso em **Configurações → Reparos**. Sondas que são DNS de uma WAN ou que não resolvem são
+ignoradas.
+
 **Medição** (mesmas regras do script original). Cada sonda é um handshake TCP + TLS na porta 443,
 e a duração dele é a latência.
 
@@ -175,6 +180,9 @@ Entidades no gateway:
 
 - por WAN: *Quality* (com atributos por sonda), *Probe latency*, *Probe jitter*, *Probes OK*;
 - status *WAN failover* (`ok`, `failed_over`, `cooldown`, `monitoring`, `error`);
+- *Last WAN switch*: quando a integração mudou a WAN primária pela última vez, com `from`, `to`,
+  `reason` e `trigger` (`automatic` ou `manual`). Sobrevive a reinícios. Sugestões do modo Notify
+  não contam;
 - selects *Auto WAN failover*, *Preferred WAN* e *Primary WAN*. *Primary WAN* troca os papéis na
   hora.
 

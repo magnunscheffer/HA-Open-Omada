@@ -28,6 +28,8 @@ DEFAULT_PROBES = {
     2: ["149.112.112.112", "iaas.sa-saopaulo-1.oraclecloud.com", "8.8.4.4"],
 }
 
+MAX_PROBES = 10  # per WAN (all run in parallel on every measurement)
+
 _TLS = ssl.create_default_context()
 _TLS.check_hostname = False
 _TLS.verify_mode = ssl.CERT_NONE  # we time the handshake; no data is exchanged

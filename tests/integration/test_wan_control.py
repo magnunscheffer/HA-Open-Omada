@@ -197,3 +197,46 @@ async def test_options_form_sections_names_and_flat_storage(hass, fake_client, s
     assert result["type"] == "create_entry"
     assert entry.options["latency_ms"] == 200 and entry.options["failback_min"] == 30
     assert "quality" not in entry.options and "failover" not in entry.options
+
+
+async def test_last_switch_sensor_records_automatic_and_manual(hass, fake_client, setup):
+    entry, ctl, quality = setup
+    eid = _eid(hass, "sensor", f"{GW}_wanctl_last_switch")
+    assert hass.states.get(eid).state == "unknown"
+    ctl.mode = "automatic"
+    quality[1] = POOR
+    await ctl._async_cycle()
+    await hass.async_block_till_done()
+    state = hass.states.get(eid)
+    assert state.state != "unknown"
+    attrs = state.attributes
+    assert (attrs["from"], attrs["to"], attrs["trigger"]) == ("WAN1", "WAN2", "automatic")
+    ctl.last_switch_at = None  # skip the cooldown for the manual test
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": _eid(hass, "select", f"{GW}_wanctl_primary"), "option": "WAN1"},
+                                   blocking=True)
+    await hass.async_block_till_done()
+    state = hass.states.get(eid)
+    assert (state.attributes["to"], state.attributes["trigger"]) == ("WAN1", "manual")
+
+
+async def test_few_usable_probes_raise_a_repair_issue(hass, fake_client, setup):
+    from homeassistant.helpers import issue_registry as ir
+
+    entry, ctl, _ = setup
+    issues = ir.async_get(hass)
+    # the fixture has 2 probes per WAN: below the recommended 3
+    assert issues.async_get_issue(DOMAIN, f"few_probes_{entry.entry_id}_1")
+    ctl.config.probes[1] = ["192.0.2.10", "192.0.2.11", "192.0.2.12"]
+    await ctl._sync_objects()
+    assert not issues.async_get_issue(DOMAIN, f"few_probes_{entry.entry_id}_1")
+    assert issues.async_get_issue(DOMAIN, f"few_probes_{entry.entry_id}_2")
+
+
+async def test_options_reject_more_than_ten_probes(hass, fake_client, setup):
+    entry, ctl, _ = setup
+    many = ", ".join(f"192.0.2.{i}" for i in range(100, 111))
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _form({**OPTIONS, "probes_wan1": many}))
+    assert result["errors"] == {"base": "probes_too_many"}

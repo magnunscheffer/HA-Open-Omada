@@ -157,6 +157,9 @@
           "monitoring": "Monitorando",
           "error": "Erro"
         }
+      },
+      "wan_last_switch": {
+        "name": "Última troca de WAN"
       }
     },
     "switch": {
@@ -307,8 +310,8 @@
           "probes_wan2": "Sondas da {wan2}"
         },
         "data_description": {
-          "probes_wan1": "Nomes ou IPv4 separados por vírgula. Não use os servidores DNS configurados numa WAN ({wan_dns}): o gateway os roteia por conta própria, então não podem ser fixados e são ignorados.",
-          "probes_wan2": "Uma sonda só pode ser usada numa WAN."
+          "probes_wan1": "Nomes ou IPv4 separados por vírgula. Use 3 ou mais por WAN (número ímpar é melhor: a maioria precisa responder). Não use os servidores DNS configurados numa WAN ({wan_dns}): o gateway os roteia por conta própria, então não podem ser fixados e são ignorados.",
+          "probes_wan2": "Uma sonda só pode ser usada numa WAN. Até 10 por WAN."
         },
         "sections": {
           "quality": {
@@ -337,7 +340,14 @@
     },
     "error": {
       "probes_required": "Cada WAN precisa de pelo menos uma sonda.",
-      "probes_overlap": "Uma sonda não pode ser usada nas duas WANs (um IP só pode ser fixado em uma WAN)."
+      "probes_overlap": "Uma sonda não pode ser usada nas duas WANs (um IP só pode ser fixado em uma WAN).",
+      "probes_too_many": "No máximo 10 sondas por WAN."
+    }
+  },
+  "issues": {
+    "few_probes": {
+      "title": "Poucas sondas válidas na {wan}",
+      "description": "O Enhanced WAN Control tem só {count} sonda(s) válida(s) na {wan} (recomendado: pelo menos {minimum}). Com tão poucas, um destino fora do ar ou lento faz a WAN inteira parecer ruim e pode causar uma troca desnecessária. Sondas que são DNS de uma WAN ou que não resolvem são ignoradas. Adicione sondas nas opções da integração (Configurar)."
     }
   }
 }

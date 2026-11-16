@@ -225,6 +225,11 @@ all named `Open Omada probe <id> …`:
 Only traffic from Home Assistant to the probe IPs is affected. The probe routes are not shown as
 switches. Turning the feature off, or removing the integration, deletes these objects.
 
+**Probes per WAN:** 1 to 10. Use **3 or more**, and an odd number works best: with a single
+probe, one target that is down makes the whole WAN look bad. When fewer than 3 usable probes
+remain, a warning shows in **Settings → Repairs**. Probes that are WAN DNS servers or do not
+resolve are skipped.
+
 **Measurement** (same rules as the original script). Each probe is a TCP + TLS handshake on port
 443, and its duration is the latency.
 
@@ -260,6 +265,9 @@ Entities on the gateway:
 
 - per WAN: *Quality* (with per-probe attributes), *Probe latency*, *Probe jitter*, *Probes OK*;
 - *WAN failover* status (`ok`, `failed_over`, `cooldown`, `monitoring`, `error`);
+- *Last WAN switch*: when the integration last changed the primary WAN, with `from`, `to`,
+  `reason` and `trigger` (`automatic` or `manual`). It is kept across restarts. Suggestions in
+  Notify mode do not count;
 - selects *Auto WAN failover*, *Preferred WAN* and *Primary WAN*. *Primary WAN* swaps the roles
   right away.
 

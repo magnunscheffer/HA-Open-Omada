@@ -157,6 +157,9 @@
           "monitoring": "Monitoring",
           "error": "Error"
         }
+      },
+      "wan_last_switch": {
+        "name": "Last WAN switch"
       }
     },
     "switch": {
@@ -307,8 +310,8 @@
           "probes_wan2": "Probes for {wan2}"
         },
         "data_description": {
-          "probes_wan1": "Host names or IPv4, comma separated. Do not use the DNS servers set on a WAN ({wan_dns}): the gateway routes them itself, so they cannot be pinned and are skipped.",
-          "probes_wan2": "A probe can only be used on one WAN."
+          "probes_wan1": "Host names or IPv4, comma separated. Use 3 or more per WAN (an odd number works best: the majority must answer). Do not use the DNS servers set on a WAN ({wan_dns}): the gateway routes them itself, so they cannot be pinned and are skipped.",
+          "probes_wan2": "A probe can only be used on one WAN. Up to 10 per WAN."
         },
         "sections": {
           "quality": {
@@ -337,7 +340,14 @@
     },
     "error": {
       "probes_required": "Each WAN needs at least one probe.",
-      "probes_overlap": "A probe cannot be used on both WANs (one IP can only be pinned to one WAN)."
+      "probes_overlap": "A probe cannot be used on both WANs (one IP can only be pinned to one WAN).",
+      "probes_too_many": "At most 10 probes per WAN."
+    }
+  },
+  "issues": {
+    "few_probes": {
+      "title": "Few usable WAN probes for {wan}",
+      "description": "Enhanced WAN Control has only {count} usable probe(s) for {wan} (at least {minimum} recommended). With so few, one target that is down or slow makes the whole WAN look bad and can cause an unneeded switch. Probes that are WAN DNS servers or do not resolve are skipped. Add probes in the integration options (Configure)."
     }
   }
 }

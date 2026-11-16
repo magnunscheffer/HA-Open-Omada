@@ -23,6 +23,7 @@ from typing import Any
 from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import instance_id
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
@@ -34,6 +35,7 @@ SIGNAL_WAN_CONTROL = f"{DOMAIN}_wan_control_update"
 EVENT_WAN_FAILOVER = f"{DOMAIN}_wan_failover"
 MODES = ("off", "notify", "automatic")
 RESYNC_EVERY = 3600  # re-resolve probe hosts / re-check managed objects
+MIN_GOOD_PROBES = 3  # fewer usable probes per WAN -> repair issue (one bad target can flip the WAN)
 
 
 @dataclass(slots=True)
@@ -71,6 +73,7 @@ class WanControl:
         self.last_action: dict[str, Any] | None = None
         self.error: str | None = None
         self.skipped: dict[int, list[str]] = {}  # probes that cannot be pinned (WAN DNS servers)
+        self.last_switch: dict[str, Any] | None = None  # last real primary WAN change made by us
         self._notified: str | None = None
         self._synced_at = 0.0
         self._unsub = None
@@ -181,6 +184,7 @@ class WanControl:
                     targets.append(ProbeTarget(host, ips[0]))
             state = self.wans.setdefault(wan.port, WanState(wan.port, wan.name))
             state.name, state.targets = wan.name, targets
+            self._probe_count_issue(wan.port, wan.name, len(targets))
             if not targets:
                 continue
             dest = await ensure_group(self._name(f"WAN{wan.port}"), sorted({t.ip for t in targets}))
@@ -200,9 +204,24 @@ class WanControl:
         self.error = None
         LOGGER.debug("WAN probes synced: %s", {p: [t.ip for t in w.targets] for p, w in self.wans.items()})
 
+    def _issue_id(self, port: int) -> str:
+        return f"few_probes_{self.coordinator.config_entry.entry_id}_{port}"
+
+    def _probe_count_issue(self, port: int, name: str, usable: int) -> None:
+        if usable >= MIN_GOOD_PROBES:
+            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(port))
+            return
+        ir.async_create_issue(
+            self.hass, DOMAIN, self._issue_id(port), is_fixable=False, severity=ir.IssueSeverity.WARNING,
+            translation_key="few_probes",
+            translation_placeholders={"wan": name, "count": str(usable), "minimum": str(MIN_GOOD_PROBES)},
+        )
+
     async def async_remove_objects(self) -> None:
         """Delete every managed object of this HA instance (feature turned off)."""
         self.async_stop()
+        for port in (1, 2):
+            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id(port))
         await async_remove_managed_objects(self.hass, self.client)
 
     # ------------------------------------------------------------- the loop
@@ -279,6 +298,7 @@ class WanControl:
         await self.client.set_primary_wan(site.site.id, self.wan_ids(site)[target])
         self.last_switch_at = time.time()
         self._notified = None
+        self._record_switch(active, target, reason, "automatic")
         self._fire(active, target, reason, dry_run=False)
         await self.coordinator.async_request_refresh()
 
@@ -306,9 +326,17 @@ class WanControl:
         site = self._site()
         if site is None or port not in self.wan_ids(site):
             raise OmadaError(f"WAN {port} is not part of the failover configuration")
+        before = self.in_use_port()
         await self.client.set_primary_wan(site.site.id, self.wan_ids(site)[port])
         self.last_switch_at = time.time()
+        self._record_switch(before, port, "Primary WAN select", "manual")
+        async_dispatcher_send(self.hass, SIGNAL_WAN_CONTROL)
         await self.coordinator.async_request_refresh()
+
+    def _record_switch(self, from_port: int | None, to_port: int, reason: str, trigger: str) -> None:
+        name = lambda p: self.wans[p].name if p in self.wans else (f"WAN{p}" if p else None)  # noqa: E731
+        self.last_switch = {"at": time.time(), "from": name(from_port), "to": name(to_port),
+                            "reason": reason, "trigger": trigger}
 
     def status(self) -> str:
         if self.error:

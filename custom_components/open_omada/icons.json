@@ -51,6 +51,9 @@
       },
       "wan_failover_status": {
         "default": "mdi:swap-horizontal"
+      },
+      "wan_last_switch": {
+        "default": "mdi:history"
       }
     },
     "switch": {

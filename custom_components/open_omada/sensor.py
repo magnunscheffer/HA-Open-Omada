@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -128,7 +129,8 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     if coordinator.wan_control and (gw := gateway_mac(coordinator)):
-        wan_sensors: list[SensorEntity] = [WanFailoverStatusSensor(coordinator, gw)]
+        wan_sensors: list[SensorEntity] = [WanFailoverStatusSensor(coordinator, gw),
+                                           LastWanSwitchSensor(coordinator, gw)]
         for port in coordinator.wan_control.config.probes:
             wan_sensors += [WanQualitySensor(coordinator, gw, port), WanProbeSensor(coordinator, gw, port, "latency"),
                             WanProbeSensor(coordinator, gw, port, "jitter"),
@@ -469,3 +471,36 @@ class WanFailoverStatusSensor(WanControlEntity, SensorEntity):
             "last_action": {**last, "at": dt_util.utc_from_timestamp(last["at"]).isoformat()} if last else None,
             "error": ctl.error,
         }
+
+
+class LastWanSwitchSensor(WanControlEntity, RestoreSensor):
+    """When this integration last changed the primary WAN (automatic or the Primary WAN select)."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_translation_key = "wan_last_switch"
+    _ATTRS = ("from", "to", "reason", "trigger")
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str) -> None:
+        super().__init__(coordinator, mac, "wanctl_last_switch")
+        self._restored: tuple[object, dict] | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        state, data = await self.async_get_last_state(), await self.async_get_last_sensor_data()
+        if state and data and data.native_value is not None:
+            self._restored = (data.native_value, {k: state.attributes.get(k) for k in self._ATTRS})
+
+    @property
+    def native_value(self):
+        last = self.ctl.last_switch
+        if last:
+            return dt_util.utc_from_timestamp(last["at"])
+        return self._restored[0] if self._restored else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        last = self.ctl.last_switch
+        if last:
+            return {k: last[k] for k in self._ATTRS}
+        return self._restored[1] if self._restored else {k: None for k in self._ATTRS}
+
