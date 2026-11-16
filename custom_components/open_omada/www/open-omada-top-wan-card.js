@@ -23,6 +23,17 @@ const S = {
   up: "Upload",
 };
 
+// Entity name without the device prefix ("fw1 Top WAN client (10 min)" -> "Top WAN client (10 min)").
+function entityTitle(hass, entityId, state) {
+  const friendly = state?.attributes?.friendly_name;
+  if (!friendly) return undefined;
+  const deviceId = hass?.entities?.[entityId]?.device_id;
+  const device = deviceId ? hass?.devices?.[deviceId] : undefined;
+  const deviceName = device?.name_by_user || device?.name;
+  if (deviceName && friendly.startsWith(`${deviceName} `)) return friendly.slice(deviceName.length + 1);
+  return friendly;
+}
+
 function formatWindow(minutes) {
   if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60} h`;
   return `${minutes} min`;
@@ -101,7 +112,7 @@ class OpenOmadaTopWanCard extends HTMLElement {
     header.className = "header";
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = this._config.title ?? s.title;
+    title.textContent = this._config.title || entityTitle(this._hass, this._config.entity, state) || s.title;
     const sub = document.createElement("div");
     sub.className = "sub";
     header.append(title, sub);

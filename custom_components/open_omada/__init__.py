@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from homeassistant.const import CONF_URL, CONF_VERIFY_SSL
@@ -36,13 +37,12 @@ async def _async_register_card(hass: HomeAssistant) -> None:
         return  # e.g. headless tests
     from homeassistant.components.frontend import add_extra_js_url
     from homeassistant.components.http import StaticPathConfig
-    from homeassistant.loader import async_get_integration
 
-    version = (await async_get_integration(hass, DOMAIN)).version
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(Path(__file__).parent / "www" / CARD_FILE), True)]
-    )
-    add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+    path = Path(__file__).parent / "www" / CARD_FILE
+    # Cache-bust on content, not on the version: browsers keep the file for a long time.
+    digest = hashlib.sha256(await hass.async_add_executor_job(path.read_bytes)).hexdigest()[:12]
+    await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(path), True)])
+    add_extra_js_url(hass, f"{CARD_URL}?v={digest}")
 
 
 def build_client(hass: HomeAssistant, data: dict) -> OmadaClient:
