@@ -129,6 +129,34 @@
       },
       "top_wan_10m": {
         "name": "Maior consumo de WAN (10 min)"
+      },
+      "wan_quality": {
+        "name": "{wan} qualidade",
+        "state": {
+          "good": "Boa",
+          "poor": "Ruim",
+          "offline": "Offline",
+          "unknown": "Desconhecida"
+        }
+      },
+      "wan_probe_latency": {
+        "name": "{wan} latência das sondas"
+      },
+      "wan_probe_jitter": {
+        "name": "{wan} jitter das sondas"
+      },
+      "wan_probe_success": {
+        "name": "{wan} sondas OK"
+      },
+      "wan_failover_status": {
+        "name": "Failover de WAN",
+        "state": {
+          "ok": "OK",
+          "failed_over": "Em failover",
+          "cooldown": "Aguardando intervalo",
+          "monitoring": "Monitorando",
+          "error": "Erro"
+        }
       }
     },
     "switch": {
@@ -155,6 +183,22 @@
       },
       "vpn": {
         "name": "VPN {name}"
+      }
+    },
+    "select": {
+      "wan_failover_mode": {
+        "name": "Failover automático de WAN",
+        "state": {
+          "off": "Desligado (só medir)",
+          "notify": "Só avisar",
+          "automatic": "Automático"
+        }
+      },
+      "wan_preferred": {
+        "name": "WAN preferida"
+      },
+      "wan_primary": {
+        "name": "WAN primária"
       }
     }
   },
@@ -250,6 +294,29 @@
           "description": "Novo nome do cliente (1–128 caracteres)."
         }
       }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Enhanced WAN Control",
+        "description": "As sondas são fixadas em cada WAN por policy routes do Omada criadas e mantidas pela integração (só deste Home Assistant para os IPs das sondas). Cada WAN precisa de alvos próprios (nomes ou IPv4, separados por vírgula).",
+        "data": {
+          "wan_control": "Ativar Enhanced WAN Control",
+          "probes_wan1": "Sondas da porta WAN 1",
+          "probes_wan2": "Sondas da porta WAN 2",
+          "latency_ms": "Ruim acima da latência mediana (ms)",
+          "interval_s": "Medir a cada (s)",
+          "confirm_tests": "Testes extras para confirmar um resultado ruim",
+          "confirm_interval_s": "Segundos entre testes de confirmação",
+          "cooldown_min": "Mínimo de minutos entre trocas",
+          "failback_min": "Voltar à WAN preferida após ela ficar boa por (min)"
+        }
+      }
+    },
+    "error": {
+      "probes_required": "Cada WAN precisa de pelo menos uma sonda.",
+      "probes_overlap": "Uma sonda não pode ser usada nas duas WANs (um IP só pode ser fixado em uma WAN)."
     }
   }
 }

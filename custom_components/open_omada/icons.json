@@ -36,6 +36,21 @@
       },
       "top_wan_10m": {
         "default": "mdi:speedometer"
+      },
+      "wan_quality": {
+        "default": "mdi:signal"
+      },
+      "wan_probe_latency": {
+        "default": "mdi:timer-outline"
+      },
+      "wan_probe_jitter": {
+        "default": "mdi:chart-bell-curve"
+      },
+      "wan_probe_success": {
+        "default": "mdi:check-network"
+      },
+      "wan_failover_status": {
+        "default": "mdi:swap-horizontal"
       }
     },
     "switch": {
@@ -100,6 +115,17 @@
       },
       "controller_connected": {
         "default": "mdi:server-network"
+      }
+    },
+    "select": {
+      "wan_failover_mode": {
+        "default": "mdi:swap-horizontal-bold"
+      },
+      "wan_preferred": {
+        "default": "mdi:star"
+      },
+      "wan_primary": {
+        "default": "mdi:wan"
       }
     }
   },

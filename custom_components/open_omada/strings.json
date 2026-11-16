@@ -129,6 +129,34 @@
       },
       "top_wan_10m": {
         "name": "Top WAN client (10 min)"
+      },
+      "wan_quality": {
+        "name": "{wan} quality",
+        "state": {
+          "good": "Good",
+          "poor": "Poor",
+          "offline": "Offline",
+          "unknown": "Unknown"
+        }
+      },
+      "wan_probe_latency": {
+        "name": "{wan} probe latency"
+      },
+      "wan_probe_jitter": {
+        "name": "{wan} probe jitter"
+      },
+      "wan_probe_success": {
+        "name": "{wan} probes OK"
+      },
+      "wan_failover_status": {
+        "name": "WAN failover",
+        "state": {
+          "ok": "OK",
+          "failed_over": "Failed over",
+          "cooldown": "Cooldown",
+          "monitoring": "Monitoring",
+          "error": "Error"
+        }
       }
     },
     "switch": {
@@ -155,6 +183,22 @@
       },
       "vpn": {
         "name": "VPN {name}"
+      }
+    },
+    "select": {
+      "wan_failover_mode": {
+        "name": "Auto WAN failover",
+        "state": {
+          "off": "Off (measure only)",
+          "notify": "Notify only",
+          "automatic": "Automatic"
+        }
+      },
+      "wan_preferred": {
+        "name": "Preferred WAN"
+      },
+      "wan_primary": {
+        "name": "Primary WAN"
       }
     }
   },
@@ -250,6 +294,29 @@
           "description": "New client name (1–128 characters)."
         }
       }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Enhanced WAN Control",
+        "description": "Probes are pinned to each WAN with Omada policy routes created and kept by the integration (only this Home Assistant host to the probe IPs). Each WAN needs its own targets (host names or IPv4, comma separated).",
+        "data": {
+          "wan_control": "Enable Enhanced WAN Control",
+          "probes_wan1": "Probes for WAN port 1",
+          "probes_wan2": "Probes for WAN port 2",
+          "latency_ms": "Poor above median latency (ms)",
+          "interval_s": "Measure every (s)",
+          "confirm_tests": "Extra tests to confirm a bad result",
+          "confirm_interval_s": "Seconds between confirmation tests",
+          "cooldown_min": "Minimum minutes between switches",
+          "failback_min": "Return to the preferred WAN after it is good for (min)"
+        }
+      }
+    },
+    "error": {
+      "probes_required": "Each WAN needs at least one probe.",
+      "probes_overlap": "A probe cannot be used on both WANs (one IP can only be pinned to one WAN)."
     }
   }
 }

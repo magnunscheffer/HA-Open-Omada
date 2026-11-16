@@ -144,6 +144,7 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
     routes: list[Rule] = []
     forwards: list[Rule] = []
     vpns: list[Rule] = []
+    lb: dict | None = None
     wan_mode: str | None = None
     if has_gateway:
         acls = _parse(errors, "acls", await _safe(errors, "acls", client.get_gateway_acls(sid)), Rule.acl)
@@ -158,7 +159,7 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
                 wan_mode = apply_wan_roles(gw.wans, lb)
 
     return SiteSnapshot(site, devices, gateways, switches, aps, acls, routes, ssids, errors,
-                        port_forwards=forwards, vpns=vpns, wan_mode=wan_mode,
+                        port_forwards=forwards, vpns=vpns, wan_mode=wan_mode, load_balance=lb or {},
                         disable_profile_id=disable_pid, default_profile_id=default_pid)
 
 

@@ -28,9 +28,30 @@ TOP_WAN_KEEP = 1800  # older than 30 min: show "no recent data" instead
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+# Enhanced WAN Control options (defaults = the owner's original script).
+CONF_WAN_CONTROL = "wan_control"
+CONF_PROBES_WAN1 = "probes_wan1"
+CONF_PROBES_WAN2 = "probes_wan2"
+CONF_LATENCY = "latency_ms"
+CONF_INTERVAL = "interval_s"
+CONF_CONFIRM_TESTS = "confirm_tests"
+CONF_CONFIRM_INTERVAL = "confirm_interval_s"
+CONF_COOLDOWN = "cooldown_min"
+CONF_FAILBACK = "failback_min"
+WAN_CONTROL_DEFAULTS = {
+    CONF_WAN_CONTROL: False,
+    CONF_LATENCY: 150,
+    CONF_INTERVAL: 30,
+    CONF_CONFIRM_TESTS: 2,
+    CONF_CONFIRM_INTERVAL: 5,
+    CONF_COOLDOWN: 15,
+    CONF_FAILBACK: 60,
+}
 
 # Bundled dashboard card (served by the integration, loaded in every dashboard).
 CARD_FILE = "open-omada-top-wan-card.js"

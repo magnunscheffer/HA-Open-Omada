@@ -26,6 +26,7 @@ from .api.models import AccessPoint, Gateway, Switch, Wan
 from .const import TOP_WAN_WINDOWS
 from .coordinator import DeviceRef, OmadaConfigEntry, OmadaCoordinator
 from .entity import NewEntities, OmadaControllerEntity, OmadaDeviceEntity
+from .wan_control_entities import WanControlEntity, gateway_mac
 
 # Coordinator centralises updates; read-only platform.
 PARALLEL_UPDATES = 0
@@ -126,6 +127,16 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
+    if coordinator.wan_control and (gw := gateway_mac(coordinator)):
+        wan_sensors: list[SensorEntity] = [WanFailoverStatusSensor(coordinator, gw)]
+        for port in coordinator.wan_control.config.probes:
+            wan_sensors += [WanQualitySensor(coordinator, gw, port), WanProbeSensor(coordinator, gw, port, "latency"),
+                            WanProbeSensor(coordinator, gw, port, "jitter"),
+                            WanProbeSensor(coordinator, gw, port, "success")]
+        wan_known = coordinator.new_known_set()
+        wan_known.update(e.unique_id for e in wan_sensors)
+        coordinator.provided_unique_ids |= wan_known
+        async_add_entities(wan_sensors)
     controller_sensor = OmadaControllerSitesSensor(coordinator)
     known = coordinator.new_known_set()
     known.add(controller_sensor.unique_id)
@@ -356,3 +367,104 @@ def _port(ref: DeviceRef, port: int):
     if isinstance(ref.node, Switch):
         return next((p for p in ref.node.ports if p.port == port), None)
     return None
+
+
+class WanQualitySensor(WanControlEntity, SensorEntity):
+    """Quality of a WAN from its pinned probes: good / poor / offline / unknown."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["good", "poor", "offline", "unknown"]
+    _attr_translation_key = "wan_quality"
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str, port: int) -> None:
+        super().__init__(coordinator, mac, f"wanctl{port}_quality")
+        self.port = port
+        self._attr_translation_placeholders = {"wan": self._wan_name}
+
+    @property
+    def _wan_name(self) -> str:
+        w = self.ctl.wans.get(self.port)
+        if w:
+            return w.name
+        site = self.ctl._site()
+        return next((x.name for x in site.gateways[0].wans if x.port == self.port), f"WAN{self.port}") if site \
+            else f"WAN{self.port}"
+
+    @property
+    def native_value(self) -> str:
+        w = self.ctl.wans.get(self.port)
+        return w.quality.quality if w and w.quality else "unknown"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        w = self.ctl.wans.get(self.port)
+        q = w.quality if w else None
+        return {
+            "probes": [{"host": r.target.host, "ip": r.target.ip, "ok": r.ok, "latency_ms": r.latency_ms,
+                        "error": r.error} for r in (q.results if q else [])],
+            "stable_minutes": self.ctl.stable_minutes(self.port),
+            "samples": q.samples if q else 0,
+            "updated": dt_util.utc_from_timestamp(q.at).isoformat() if q else None,
+        }
+
+
+class WanProbeSensor(WanControlEntity, SensorEntity):
+    """Probe latency / jitter (ms) or success (%) of a WAN."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str, port: int, kind: str) -> None:
+        super().__init__(coordinator, mac, f"wanctl{port}_{kind}")
+        self.port, self.kind = port, kind
+        self._attr_translation_key = f"wan_probe_{kind}"
+        if kind == "success":
+            self._attr_native_unit_of_measurement = PERCENTAGE
+        else:
+            self._attr_native_unit_of_measurement = UnitOfTime.MILLISECONDS
+            self._attr_device_class = SensorDeviceClass.DURATION
+        site = self.ctl._site()
+        name = next((x.name for x in site.gateways[0].wans if x.port == port), f"WAN{port}") if site else f"WAN{port}"
+        self._attr_translation_placeholders = {"wan": name}
+
+    @property
+    def native_value(self) -> float | None:
+        w = self.ctl.wans.get(self.port)
+        q = w.quality if w else None
+        if not q:
+            return None
+        if self.kind == "latency":
+            return q.median_ms
+        if self.kind == "jitter":
+            return q.jitter_ms
+        return round(100 * q.ok / q.total) if q.total else None
+
+
+class WanFailoverStatusSensor(WanControlEntity, SensorEntity):
+    """ok / failed_over / cooldown / monitoring / error, with the failback countdown."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["ok", "failed_over", "cooldown", "monitoring", "error"]
+    _attr_translation_key = "wan_failover_status"
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str) -> None:
+        super().__init__(coordinator, mac, "wanctl_status")
+
+    @property
+    def native_value(self) -> str:
+        return self.ctl.status()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        ctl = self.ctl
+        names = {p: w.name for p, w in ctl.wans.items()}
+        last = ctl.last_action
+        return {
+            "mode": ctl.mode,
+            "wan_in_use": names.get(ctl.in_use_port()),
+            "preferred_wan": names.get(ctl.preferred_port),
+            "preferred_stable_minutes": ctl.stable_minutes(ctl.preferred_port),
+            "failback_after_minutes": ctl.config.failback_min,
+            "cooldown_left_minutes": ctl.cooldown_left_min(),
+            "last_action": {**last, "at": dt_util.utc_from_timestamp(last["at"]).isoformat()} if last else None,
+            "error": ctl.error,
+        }

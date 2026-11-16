@@ -44,6 +44,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         )
         self.client = client
         self.controller_device_id: str | None = None
+        self.wan_control = None  # WanControl when Enhanced WAN Control is enabled
         self.data_started_at: float = 0.0
         # unique_ids the platforms currently provide (filled by each platform).
         self.provided_unique_ids: set[str] = set()

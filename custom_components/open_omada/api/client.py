@@ -499,11 +499,80 @@ class OmadaClient:
         )
 
 
+    # ---------------------------------------------- Enhanced WAN Control (managed objects)
+    async def get_ip_groups(self, site_id: str) -> list[dict]:
+        return await self.get_paged(self._site(site_id, "/profiles/groups"))
+
+    async def create_ip_group(self, site_id: str, name: str, ips: list[str]) -> str | None:
+        result = await self.request(
+            "POST", self._site(site_id, "/profiles/groups"),
+            json={"name": name, "type": 0, "ipList": [{"ip": ip, "mask": 32} for ip in ips]},
+        )
+        return (result or {}).get("id")
+
+    async def update_ip_group(self, site_id: str, group_id: str, name: str, ips: list[str]) -> None:
+        await self.request(
+            "PATCH", self._site(site_id, f"/profiles/groups/0/{group_id}"),
+            json={"name": name, "type": 0, "ipList": [{"ip": ip, "mask": 32} for ip in ips]},
+        )
+
+    async def delete_ip_group(self, site_id: str, group_id: str) -> None:
+        await self.request("DELETE", self._site(site_id, f"/profiles/groups/0/{group_id}"))
+
+    def _probe_route_body(self, name: str, wan_id: str, source_group: str, dest_group: str) -> dict:
+        # All protocols (256), source = HA host group, destination = probe group, no fallback:
+        # a bad WAN must look bad.
+        return {"name": name, "status": True, "protocols": [256], "interfaceType": 0, "interfaceId": wan_id,
+                "backupInterface": False, "sourceType": 1, "sourceIds": [source_group],
+                "destinationType": 1, "destinationIds": [dest_group]}
+
+    async def create_probe_route(self, site_id: str, name: str, wan_id: str, source_group: str,
+                                 dest_group: str) -> None:
+        await self.request("POST", self._site(site_id, "/routing/policy-routings"),
+                           json=self._probe_route_body(name, wan_id, source_group, dest_group))
+
+    async def update_probe_route(self, site_id: str, route_id: str, name: str, wan_id: str, source_group: str,
+                                 dest_group: str) -> None:
+        await self.request("PUT", self._site(site_id, f"/routing/policy-routings/{route_id}"),
+                           json=self._probe_route_body(name, wan_id, source_group, dest_group))
+
+    async def delete_policy_route(self, site_id: str, route_id: str) -> None:
+        await self.request("DELETE", self._site(site_id, f"/routing/policy-routings/{route_id}"))
+
+    async def set_policy_route_order(self, site_id: str, order: list[str]) -> None:
+        """Re-order policy routes: ``order`` is the full list of route ids, first = highest priority."""
+        await self.request("POST", self._site(site_id, "/routing/policy-routings/modifyIndex"),
+                           json={"indexes": {rid: i + 1 for i, rid in enumerate(order)}})
+
+    async def set_primary_wan(self, site_id: str, primary_wan_id: str) -> dict:
+        """Failover swap: make ``primary_wan_id`` the primary and the current primary the backup.
+
+        Uses PUT /internet/load-balance with the current config (2-WAN link backup only).
+        """
+        lb = await self.get_wan_load_balance(site_id)
+        if not lb.get("linkBackup") or not lb.get("backupWan") or len(lb.get("primaryWans") or []) != 1:
+            raise OmadaApiError(-1, "WAN swap needs link backup with one primary and one backup WAN",
+                                "/internet/load-balance")
+        current = lb["primaryWans"][0]
+        if current == primary_wan_id:
+            return lb
+        if lb["backupWan"] != primary_wan_id:
+            raise OmadaApiError(-1, f"{primary_wan_id} is not the backup WAN", "/internet/load-balance")
+        body = {k: lb[k] for k in LOAD_BALANCE_PUT_FIELDS if k in lb}
+        body["primaryWans"], body["backupWan"] = [primary_wan_id], current
+        await self.request("PUT", self._site(site_id, "/internet/load-balance"), json=body)
+        return body
+
+
 # Writable fields per the spec request schemas (modifyOsgAcl / modifyPolicyRouting /
 # modifyPortForwarding).
 ACL_PUT_FIELDS = (
     "description", "status", "policy", "protocols", "sourceIds", "destinationIds", "syslog",
     "sourceType", "destinationType", "direction", "stateMode", "states", "timeRangeId",
+)
+LOAD_BALANCE_PUT_FIELDS = (
+    "weights", "appOptRouting", "linkBackup", "method", "primaryWans", "backupWan", "backupMode", "mode",
+    "timeRangeId", "virtualWanWeights",
 )
 PORT_FORWARD_PUT_FIELDS = (
     "name", "status", "from", "limitedAddresses", "interfaceWanPortId", "virtualWanId", "existVirtualWan",

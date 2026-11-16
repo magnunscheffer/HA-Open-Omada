@@ -7,13 +7,36 @@ from typing import Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_URL, CONF_VERIFY_SSL
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .api import OmadaAuthError, OmadaConnectionError, OmadaError
-from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER
+from .api.wanprobe import DEFAULT_PROBES, parse_targets
+from .const import (
+    CONF_CLIENT_ID,
+    CONF_CLIENT_SECRET,
+    CONF_CONFIRM_INTERVAL,
+    CONF_CONFIRM_TESTS,
+    CONF_COOLDOWN,
+    CONF_FAILBACK,
+    CONF_INTERVAL,
+    CONF_LATENCY,
+    CONF_PROBES_WAN1,
+    CONF_PROBES_WAN2,
+    CONF_WAN_CONTROL,
+    DOMAIN,
+    LOGGER,
+    WAN_CONTROL_DEFAULTS,
+)
 
 PLACEHOLDERS = {"example_url": "https://omada.local:8043"}
 
@@ -80,10 +103,57 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     return info
 
 
+def _num(low: float, high: float, step: float = 1) -> NumberSelector:
+    return NumberSelector(NumberSelectorConfig(min=low, max=high, step=step, mode=NumberSelectorMode.BOX))
+
+
+class OmadaOptionsFlow(OptionsFlow):
+    """Enhanced WAN Control settings."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        opts = {**WAN_CONTROL_DEFAULTS,
+                CONF_PROBES_WAN1: ", ".join(DEFAULT_PROBES[1]), CONF_PROBES_WAN2: ", ".join(DEFAULT_PROBES[2]),
+                **self.config_entry.options}
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            p1, p2 = parse_targets(user_input[CONF_PROBES_WAN1]), parse_targets(user_input[CONF_PROBES_WAN2])
+            if user_input[CONF_WAN_CONTROL] and (not p1 or not p2):
+                errors["base"] = "probes_required"
+            elif set(p1) & set(p2):
+                errors["base"] = "probes_overlap"  # one IP cannot be pinned to both WANs
+            else:
+                data = {**user_input, CONF_PROBES_WAN1: ", ".join(p1), CONF_PROBES_WAN2: ", ".join(p2)}
+                ctl = getattr(getattr(self.config_entry, "runtime_data", None), "wan_control", None)
+                if ctl and opts[CONF_WAN_CONTROL] and not user_input[CONF_WAN_CONTROL]:
+                    try:  # turned off: remove the managed probe objects from the controller
+                        await ctl.async_remove_objects()
+                    except OmadaError:
+                        LOGGER.exception("Could not remove the Enhanced WAN Control objects")
+                return self.async_create_entry(data=data)
+            opts = {**opts, **user_input}
+        schema = vol.Schema({
+            vol.Required(CONF_WAN_CONTROL, default=opts[CONF_WAN_CONTROL]): bool,
+            vol.Required(CONF_PROBES_WAN1, default=opts[CONF_PROBES_WAN1]): str,
+            vol.Required(CONF_PROBES_WAN2, default=opts[CONF_PROBES_WAN2]): str,
+            vol.Required(CONF_LATENCY, default=opts[CONF_LATENCY]): _num(20, 2000),
+            vol.Required(CONF_INTERVAL, default=opts[CONF_INTERVAL]): _num(15, 600),
+            vol.Required(CONF_CONFIRM_TESTS, default=opts[CONF_CONFIRM_TESTS]): _num(0, 5),
+            vol.Required(CONF_CONFIRM_INTERVAL, default=opts[CONF_CONFIRM_INTERVAL]): _num(1, 60),
+            vol.Required(CONF_COOLDOWN, default=opts[CONF_COOLDOWN]): _num(1, 240),
+            vol.Required(CONF_FAILBACK, default=opts[CONF_FAILBACK]): _num(1, 1440),
+        })
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+
 class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Open Omada."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OmadaOptionsFlow:
+        return OmadaOptionsFlow()
 
     async def _try(self, data: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, str]]:
         try:

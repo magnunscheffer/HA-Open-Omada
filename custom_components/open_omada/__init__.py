@@ -16,10 +16,30 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .api import OmadaAuthError, OmadaClient, OmadaError
-from .const import CARD_FILE, CARD_URL, CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER, PLATFORMS
+from .api.wanprobe import DEFAULT_PROBES, parse_targets
+from .const import (
+    CARD_FILE,
+    CARD_URL,
+    CONF_CLIENT_ID,
+    CONF_CLIENT_SECRET,
+    CONF_CONFIRM_INTERVAL,
+    CONF_CONFIRM_TESTS,
+    CONF_COOLDOWN,
+    CONF_FAILBACK,
+    CONF_INTERVAL,
+    CONF_LATENCY,
+    CONF_PROBES_WAN1,
+    CONF_PROBES_WAN2,
+    CONF_WAN_CONTROL,
+    DOMAIN,
+    LOGGER,
+    PLATFORMS,
+    WAN_CONTROL_DEFAULTS,
+)
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
 from .entity import controller_device_info
 from .services import async_setup_services
+from .wan_control import WanControl, WanControlConfig, async_remove_managed_objects
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -83,9 +103,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> boo
     )
     coordinator.controller_device_id = controller.id
     entry.runtime_data = coordinator
+    if entry.options.get(CONF_WAN_CONTROL):
+        coordinator.wan_control = WanControl(hass, coordinator, _wan_control_config(entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _remove_stale_entities(hass, entry, coordinator)
+    if coordinator.wan_control:
+        try:
+            await coordinator.wan_control.async_start()
+        except OmadaError as err:
+            LOGGER.warning("Enhanced WAN Control could not start: %s", err)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+def _wan_control_config(entry: OmadaConfigEntry) -> WanControlConfig:
+    o = {**WAN_CONTROL_DEFAULTS, **entry.options}
+    return WanControlConfig(
+        probes={1: parse_targets(o.get(CONF_PROBES_WAN1, DEFAULT_PROBES[1])),
+                2: parse_targets(o.get(CONF_PROBES_WAN2, DEFAULT_PROBES[2]))},
+        latency_ms=float(o[CONF_LATENCY]),
+        interval_s=int(o[CONF_INTERVAL]),
+        confirm_tests=int(o[CONF_CONFIRM_TESTS]),
+        confirm_interval_s=float(o[CONF_CONFIRM_INTERVAL]),
+        cooldown_min=float(o[CONF_COOLDOWN]),
+        failback_min=float(o[CONF_FAILBACK]),
+    )
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: OmadaConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 def _remove_stale_entities(hass: HomeAssistant, entry: OmadaConfigEntry, coordinator: OmadaCoordinator) -> None:
@@ -114,6 +160,8 @@ def _remove_stale_entities(hass: HomeAssistant, entry: OmadaConfigEntry, coordin
 
 async def async_unload_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> bool:
     """Unload a config entry."""
+    if entry.runtime_data.wan_control:
+        entry.runtime_data.wan_control.async_stop()
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         await entry.runtime_data.async_flush_stores()
@@ -121,7 +169,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> bo
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> None:
-    """Delete the stored port profiles when the integration is removed."""
+    """Delete stored data and the Enhanced WAN Control objects when the integration is removed."""
+    if entry.options.get(CONF_WAN_CONTROL):
+        try:
+            await async_remove_managed_objects(hass, build_client(hass, dict(entry.data)))
+        except OmadaError as err:
+            LOGGER.warning("Could not remove the Enhanced WAN Control objects: %s", err)
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.port_profiles").async_remove()
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.poe_override").async_remove()
 

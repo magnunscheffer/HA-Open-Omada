@@ -468,6 +468,7 @@ class SiteSnapshot:
     disable_profile_id: str | None = None
     default_profile_id: str | None = None
     wan_mode: str | None = None  # "failover" | "load_balance"
+    load_balance: dict[str, Any] = field(default_factory=dict)  # raw GET /internet/load-balance
 
 
 @dataclass(slots=True)

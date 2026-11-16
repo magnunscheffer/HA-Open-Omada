@@ -33,6 +33,10 @@ class FakeClient:
         self.acl_live_description = "Deny-DMZ"
         self.fail_profiles = False
         self.dpi_empty = False
+        self.two_wans = False
+        self.primary, self.backup = "1_aaa", "2_bbb"
+        self.groups: dict = {}
+        self.routes: list = []
         self.fail_dpi_auth = False
         self.hide_ap = False
         self.port2_status = 1
@@ -65,8 +69,12 @@ class FakeClient:
         return {"cpuUtil": 11, "memUtil": 38}
 
     async def get_gateway_wan_status(self, site, mac):
-        return [{"port": 1, "name": "WAN1", "mode": 0, "status": 1, "internetState": 1, "ip": "8.8.4.4",
+        wans = [{"port": 1, "name": "WAN1", "mode": 0, "status": 1, "internetState": 1, "ip": "8.8.4.4",
                  "proto": "pppoe", "rxRate": 125, "txRate": 25, "latency": 10, "loss": 0.0}]
+        if self.two_wans:
+            wans.append({"port": 2, "name": "WAN2", "mode": 0, "status": 1, "internetState": 1, "ip": "203.0.113.9",
+                         "proto": "dhcp", "rxRate": 10, "txRate": 1, "latency": 20, "loss": 0.0})
+        return wans
 
     async def get_switch(self, site, mac, agile=False):
         return {"cpuUtil": 20, "memUtil": 54, "portList": [
@@ -161,7 +169,7 @@ class FakeClient:
         return [{"id": "acl1", "index": 1, "description": "Deny-DMZ", "status": True, "policy": 0}]
 
     async def get_policy_routes(self, site):
-        return [{"id": "pr1", "index": 1, "name": "Lab-VIVO", "status": False}]
+        return [{"id": "pr1", "index": 1, "name": "Lab-VIVO", "status": False}, *self.routes]
 
     async def get_port_forwardings(self, site):
         return [{"id": "pf1", "name": "RDS", "status": True, "externalPort": "3389", "forwardIp": "10.0.0.5",
@@ -171,7 +179,49 @@ class FakeClient:
         self.calls.append(("port_forward", rule["id"], on))
 
     async def get_wan_load_balance(self, site):
-        return {"linkBackup": False}
+        if not self.two_wans:
+            return {"linkBackup": False}
+        return {"linkBackup": True, "primaryWans": [self.primary], "backupWan": self.backup, "mode": 0}
+
+    async def set_primary_wan(self, site, wan_id):
+        self.calls.append(("set_primary", wan_id))
+        if wan_id != self.primary:
+            self.primary, self.backup = wan_id, self.primary
+
+    async def get_ip_groups(self, site):
+        return [{"groupId": gid, "name": name, "ipList": ips} for gid, (name, ips) in self.groups.items()]
+
+    async def create_ip_group(self, site, name, ips):
+        gid = f"g{len(self.groups) + 1}"
+        self.groups[gid] = (name, ips)
+        self.calls.append(("create_group", name, tuple(ips)))
+        return gid
+
+    async def update_ip_group(self, site, gid, name, ips):
+        self.groups[gid] = (name, ips)
+        self.calls.append(("update_group", name, tuple(ips)))
+
+    async def delete_ip_group(self, site, gid):
+        self.groups.pop(gid, None)
+        self.calls.append(("delete_group", gid))
+
+    async def create_probe_route(self, site, name, wan_id, source, dest):
+        rid = f"r{len(self.routes) + 10}"
+        self.routes.append({"id": rid, "name": name, "index": len(self.routes) + 1, "interfaceId": wan_id})
+        self.calls.append(("create_route", name, wan_id))
+
+    async def update_probe_route(self, site, rid, name, wan_id, source, dest):
+        self.calls.append(("update_route", name, wan_id))
+
+    async def delete_policy_route(self, site, rid):
+        self.routes = [r for r in self.routes if r["id"] != rid]
+        self.calls.append(("delete_route", rid))
+
+    async def set_policy_route_order(self, site, order):
+        index = {rid: i + 1 for i, rid in enumerate(order)}
+        for r in self.routes:
+            r["index"] = index.get(r["id"], r["index"])
+        self.calls.append(("order", tuple(order)))
 
     async def get_dpi_enabled(self, site):
         if self.fail_dpi_auth:
