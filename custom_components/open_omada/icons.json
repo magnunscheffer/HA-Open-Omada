@@ -1,0 +1,96 @@
+{
+  "entity": {
+    "sensor": {
+      "cpu": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "memory": {
+        "default": "mdi:memory"
+      },
+      "devices": {
+        "default": "mdi:router-network"
+      },
+      "wan_ip": {
+        "default": "mdi:ip-network"
+      },
+      "wan_download": {
+        "default": "mdi:download-network"
+      },
+      "wan_upload": {
+        "default": "mdi:upload-network"
+      },
+      "wan_loss": {
+        "default": "mdi:lan-disconnect"
+      },
+      "port_speed": {
+        "default": "mdi:speedometer"
+      },
+      "poe_power": {
+        "default": "mdi:flash"
+      },
+      "active_wan": {
+        "default": "mdi:wan"
+      },
+      "top_wan_client": {
+        "default": "mdi:account-network"
+      }
+    },
+    "switch": {
+      "ssid": {
+        "default": "mdi:wifi",
+        "state": {
+          "off": "mdi:wifi-off"
+        }
+      },
+      "acl": {
+        "default": "mdi:shield-check",
+        "state": {
+          "off": "mdi:shield-off-outline"
+        }
+      },
+      "policy_route": {
+        "default": "mdi:routes",
+        "state": {
+          "off": "mdi:routes-clock"
+        }
+      },
+      "port": {
+        "default": "mdi:ethernet",
+        "state": {
+          "off": "mdi:ethernet-off"
+        }
+      },
+      "poe": {
+        "default": "mdi:flash",
+        "state": {
+          "off": "mdi:flash-off"
+        }
+      },
+      "port_forward": {
+        "default": "mdi:lan-connect",
+        "state": {
+          "off": "mdi:lan-disconnect"
+        }
+      }
+    },
+    "binary_sensor": {
+      "poe_powering": {
+        "default": "mdi:flash"
+      },
+      "port_link": {
+        "default": "mdi:ethernet"
+      }
+    }
+  },
+  "services": {
+    "reconnect_client": {
+      "service": "mdi:wifi-refresh"
+    },
+    "block_client": {
+      "service": "mdi:account-cancel"
+    },
+    "unblock_client": {
+      "service": "mdi:account-check"
+    }
+  }
+}

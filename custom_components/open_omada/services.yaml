@@ -1,0 +1,33 @@
+reconnect_client:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: open_omada
+    mac:
+      required: true
+      example: "AA-BB-CC-DD-EE-FF"
+      selector:
+        text:
+block_client:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: open_omada
+    mac:
+      required: true
+      example: "AA-BB-CC-DD-EE-FF"
+      selector:
+        text:
+unblock_client:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: open_omada
+    mac:
+      required: true
+      example: "AA-BB-CC-DD-EE-FF"
+      selector:
+        text:

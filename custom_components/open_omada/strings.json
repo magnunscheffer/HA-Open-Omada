@@ -1,0 +1,209 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Omada Controller",
+        "description": "Create an Open API application in Omada (Global View → Settings → Platform Integration → Open API, mode **Client**) and enter its credentials.",
+        "data": {
+          "url": "URL",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "Controller address, e.g. https://omada.local:8043",
+          "client_id": "From the Open API application in the Omada controller.",
+          "client_secret": "From the Open API application in the Omada controller.",
+          "verify_ssl": "Disable for controllers with a self-signed certificate."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Omada",
+        "description": "The Open API credentials were rejected. Enter new ones.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client Secret"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Omada",
+        "data": {
+          "url": "URL",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the controller.",
+      "invalid_auth": "Invalid client ID or secret.",
+      "unknown": "Unexpected error, see the logs."
+    },
+    "abort": {
+      "already_configured": "This controller is already configured.",
+      "reauth_successful": "Re-authentication successful.",
+      "reconfigure_successful": "Reconfiguration successful.",
+      "wrong_controller": "These credentials belong to a different controller."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "wan_link": {
+        "name": "{wan} link"
+      },
+      "wan_internet": {
+        "name": "{wan} internet"
+      },
+      "port_link": {
+        "name": "Port {port} ({name}) link"
+      },
+      "poe_powering": {
+        "name": "Port {port} ({name}) PoE powering"
+      },
+      "wan_in_use": {
+        "name": "{wan} in use"
+      }
+    },
+    "sensor": {
+      "cpu": {
+        "name": "CPU"
+      },
+      "memory": {
+        "name": "Memory"
+      },
+      "uptime": {
+        "name": "Uptime"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "devices": {
+        "name": "Devices"
+      },
+      "wan_download": {
+        "name": "{wan} download"
+      },
+      "wan_upload": {
+        "name": "{wan} upload"
+      },
+      "wan_ip": {
+        "name": "{wan} IP"
+      },
+      "wan_latency": {
+        "name": "{wan} latency"
+      },
+      "wan_loss": {
+        "name": "{wan} packet loss"
+      },
+      "port_speed": {
+        "name": "Port {port} ({name}) speed"
+      },
+      "poe_power": {
+        "name": "Port {port} ({name}) PoE power"
+      },
+      "active_wan": {
+        "name": "Active WAN"
+      },
+      "top_wan_client": {
+        "name": "Top WAN client"
+      }
+    },
+    "switch": {
+      "ssid": {
+        "name": "SSID {name}"
+      },
+      "acl": {
+        "name": "ACL {name}"
+      },
+      "policy_route": {
+        "name": "Policy route {name}"
+      },
+      "port": {
+        "name": "Port {port} ({name})"
+      },
+      "poe": {
+        "name": "Port {port} ({name}) PoE"
+      },
+      "port_forward": {
+        "name": "Port forwarding {name}"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "Omada rejected the Open API credentials."
+    },
+    "cannot_connect": {
+      "message": "Cannot reach the Omada controller: {error}"
+    },
+    "update_failed": {
+      "message": "Error updating Omada data: {error}"
+    },
+    "action_failed": {
+      "message": "Omada rejected the action: {error}"
+    },
+    "no_profile": {
+      "message": "No profile known to re-enable this port."
+    },
+    "no_disable_profile": {
+      "message": "The site has no \"Disable\" port profile."
+    },
+    "poe_needs_override": {
+      "message": "PoE of this port can only be changed with profile override, and the port uses custom VLAN tagging. Enable \"Profile Override\" for this port in the Omada controller first."
+    },
+    "select_controller": {
+      "message": "Select which Omada controller to use (config_entry_id)."
+    },
+    "client_not_found": {
+      "message": "No Omada client with MAC {mac} was found."
+    }
+  },
+  "services": {
+    "reconnect_client": {
+      "name": "Reconnect client",
+      "description": "Forces a Wi-Fi client to disconnect and reconnect.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Omada controller (only needed with more than one)."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "Client MAC address, e.g. AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "block_client": {
+      "name": "Block client",
+      "description": "Blocks a client from connecting to the network (Omada blocklist).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Omada controller (only needed with more than one)."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "Client MAC address, e.g. AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "unblock_client": {
+      "name": "Unblock client",
+      "description": "Removes a client from the Omada blocklist.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Omada controller (only needed with more than one)."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "Client MAC address, e.g. AA-BB-CC-DD-EE-FF."
+        }
+      }
+    }
+  }
+}

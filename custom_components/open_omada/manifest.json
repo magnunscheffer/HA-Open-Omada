@@ -1,0 +1,15 @@
+{
+  "domain": "open_omada",
+  "name": "Open Omada",
+  "codeowners": [
+    "@magnunscheffer"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/magnunscheffer/HA-Open-Omada",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/magnunscheffer/HA-Open-Omada/issues",
+  "loggers": [],
+  "requirements": [],
+  "version": "0.2.0b1"
+}

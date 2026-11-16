@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Omada: query (tree)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/omada_query.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Omada: query (JSON)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/omada_query.py",
+      "args": ["--json"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

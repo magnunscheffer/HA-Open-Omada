@@ -1,0 +1,25 @@
+[project]
+name = "ha-open-omada"
+version = "0.2.0b1"
+description = "Home Assistant integration for TP-Link Omada SDN using the official Open API"
+requires-python = ">=3.13"
+dependencies = ["aiohttp>=3.11"]
+
+[project.optional-dependencies]
+dev = ["python-dotenv", "pytest", "pytest-asyncio", "ruff"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["custom_components/open_omada", "."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["api"]

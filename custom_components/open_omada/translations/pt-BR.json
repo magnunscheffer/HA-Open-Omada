@@ -1,0 +1,209 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conectar ao Omada Controller",
+        "description": "Crie um aplicativo Open API no Omada (Global View → Settings → Platform Integration → Open API, modo **Client**) e informe as credenciais.",
+        "data": {
+          "url": "URL",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "verify_ssl": "Verificar certificado SSL"
+        },
+        "data_description": {
+          "url": "Endereço do controller, ex.: https://omada.local:8043",
+          "client_id": "Do aplicativo Open API no controller Omada.",
+          "client_secret": "Do aplicativo Open API no controller Omada.",
+          "verify_ssl": "Desative para controllers com certificado autoassinado."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reautenticar Omada",
+        "description": "As credenciais da Open API foram recusadas. Informe novas credenciais.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client Secret"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar Omada",
+        "data": {
+          "url": "URL",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "verify_ssl": "Verificar certificado SSL"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Não foi possível conectar ao controller.",
+      "invalid_auth": "Client ID ou secret inválido.",
+      "unknown": "Erro inesperado, verifique os logs."
+    },
+    "abort": {
+      "already_configured": "Este controller já está configurado.",
+      "reauth_successful": "Reautenticação concluída.",
+      "reconfigure_successful": "Reconfiguração concluída.",
+      "wrong_controller": "Estas credenciais pertencem a outro controller."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "wan_link": {
+        "name": "{wan} link"
+      },
+      "wan_internet": {
+        "name": "{wan} internet"
+      },
+      "port_link": {
+        "name": "Porta {port} ({name}) link"
+      },
+      "poe_powering": {
+        "name": "Porta {port} ({name}) alimentando PoE"
+      },
+      "wan_in_use": {
+        "name": "{wan} em uso"
+      }
+    },
+    "sensor": {
+      "cpu": {
+        "name": "CPU"
+      },
+      "memory": {
+        "name": "Memória"
+      },
+      "uptime": {
+        "name": "Uptime"
+      },
+      "temperature": {
+        "name": "Temperatura"
+      },
+      "devices": {
+        "name": "Dispositivos"
+      },
+      "wan_download": {
+        "name": "{wan} download"
+      },
+      "wan_upload": {
+        "name": "{wan} upload"
+      },
+      "wan_ip": {
+        "name": "{wan} IP"
+      },
+      "wan_latency": {
+        "name": "{wan} latência"
+      },
+      "wan_loss": {
+        "name": "{wan} perda de pacotes"
+      },
+      "port_speed": {
+        "name": "Porta {port} ({name}) velocidade"
+      },
+      "poe_power": {
+        "name": "Porta {port} ({name}) potência PoE"
+      },
+      "active_wan": {
+        "name": "WAN ativa"
+      },
+      "top_wan_client": {
+        "name": "Maior consumo de WAN"
+      }
+    },
+    "switch": {
+      "ssid": {
+        "name": "SSID {name}"
+      },
+      "acl": {
+        "name": "ACL {name}"
+      },
+      "policy_route": {
+        "name": "Policy route {name}"
+      },
+      "port": {
+        "name": "Porta {port} ({name})"
+      },
+      "poe": {
+        "name": "Porta {port} ({name}) PoE"
+      },
+      "port_forward": {
+        "name": "Port forwarding {name}"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "O Omada recusou as credenciais da Open API."
+    },
+    "cannot_connect": {
+      "message": "Não foi possível acessar o controller Omada: {error}"
+    },
+    "update_failed": {
+      "message": "Erro ao atualizar dados do Omada: {error}"
+    },
+    "action_failed": {
+      "message": "O Omada recusou a ação: {error}"
+    },
+    "no_profile": {
+      "message": "Nenhum profile conhecido para reativar esta porta."
+    },
+    "no_disable_profile": {
+      "message": "O site não tem o profile de porta \"Disable\"."
+    },
+    "poe_needs_override": {
+      "message": "O PoE desta porta só pode ser alterado com profile override, e a porta usa tags de VLAN personalizadas. Ative o \"Profile Override\" desta porta no controller Omada primeiro."
+    },
+    "select_controller": {
+      "message": "Selecione qual controller Omada usar (config_entry_id)."
+    },
+    "client_not_found": {
+      "message": "Nenhum cliente Omada com o MAC {mac} foi encontrado."
+    }
+  },
+  "services": {
+    "reconnect_client": {
+      "name": "Reconectar cliente",
+      "description": "Força um cliente Wi-Fi a desconectar e reconectar.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Controller Omada (só necessário com mais de um)."
+        },
+        "mac": {
+          "name": "Endereço MAC",
+          "description": "MAC do cliente, ex.: AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "block_client": {
+      "name": "Bloquear cliente",
+      "description": "Bloqueia um cliente de se conectar à rede (blocklist do Omada).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Controller Omada (só necessário com mais de um)."
+        },
+        "mac": {
+          "name": "Endereço MAC",
+          "description": "MAC do cliente, ex.: AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "unblock_client": {
+      "name": "Desbloquear cliente",
+      "description": "Remove um cliente da blocklist do Omada.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Controller Omada (só necessário com mais de um)."
+        },
+        "mac": {
+          "name": "Endereço MAC",
+          "description": "MAC do cliente, ex.: AA-BB-CC-DD-EE-FF."
+        }
+      }
+    }
+  }
+}
