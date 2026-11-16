@@ -144,9 +144,9 @@ class OmadaRuleSwitch(OmadaGatewayChild, _OptimisticSwitch):
             raw = await client.get_rule_live(site_id, kind, rule_id)
             if raw is None:
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="item_gone")
-            setter = {"acl": client.set_gateway_acl_enabled, "port_forward": client.set_port_forwarding_enabled,
-                      "policy_route": client.set_policy_route_enabled}[kind]
-            await setter(site_id, raw, on)
+            setter = {"acl": "set_gateway_acl_enabled", "port_forward": "set_port_forwarding_enabled",
+                      "policy_route": "set_policy_route_enabled"}[kind]
+            await getattr(client, setter)(site_id, raw, on)
 
         await self._call(write(), on)
 
