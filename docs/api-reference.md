@@ -55,6 +55,10 @@ Prefixo: `/openapi/v1/{omadacId}/sites/{siteId}`. MAC no formato `AA-BB-CC-DD-EE
 > `GET …/clients` (`activity`/`uploadActivity`) conta **todo** o tráfego do cliente, inclusive LAN
 > (câmera → NVR). Não serve como "consumo de WAN".
 
+**Taxas de WAN (`rxRate`/`txRate`):** rx = download, tx = upload (validado no ER605 com download
+de ISO na WAN/LAN2: rx 118,8 / tx 1,2 Mbit/s). O controller **atualiza esses valores ~1×/min**
+(média do minuto), então polling mais rápido que 60 s não traz informação nova.
+
 **IP público por WAN:** a API não expõe. `publicIp` (device) e `sitePublicIp` (site)
 trazem apenas o IP visto pelo controller local. Quando a WAN recebe IP global
 (ex.: PPPoE) o próprio `ip` é o público; atrás de modem/CGNAT só há o IP privado.
