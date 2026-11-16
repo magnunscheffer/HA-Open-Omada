@@ -171,7 +171,7 @@ class OpenOmadaTopWanCard extends HTMLElement {
   }
 
   getGridOptions() {
-    return { columns: 6, min_columns: 4, rows: "auto" };
+    return { columns: 12, min_columns: 6, rows: "auto" };
   }
 
   static getConfigForm() {
