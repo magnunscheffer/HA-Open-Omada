@@ -9,3 +9,6 @@ output/
 .venv-ha/
 ha-config/
 .venv-test/
+
+# Local AI/dev notes (not published)
+CLAUDE.md

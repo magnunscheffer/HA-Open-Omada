@@ -39,17 +39,33 @@ Community integration for **TP-Link Omada SDN** that uses the controller's **off
 
 ## Installation
 
-**HACS (custom repository)**
+### Via HACS (recommended)
 
-1. HACS → ⋮ → **Custom repositories** → add `https://github.com/magnunscheffer/HA-Open-Omada`,
-   category **Integration**. Enable *Show beta versions* to see pre-releases.
-2. Install **Open Omada** and restart Home Assistant.
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=magnunscheffer&repository=HA-Open-Omada&category=integration)
 
-**Manual:** copy `custom_components/open_omada` into your `config/custom_components/` and restart.
+The button above does steps 1–3 for you. Manually:
+
+1. Make sure [HACS](https://hacs.xyz/docs/use/) is installed.
+2. In Home Assistant open **HACS** → ⋮ (top right) → **Custom repositories**.
+3. Repository: `https://github.com/magnunscheffer/HA-Open-Omada` — Type: **Integration** → **Add**.
+4. Search HACS for **Open Omada** and open it.
+5. While the integration is in beta: ⋮ → **Redownload**, enable **Show beta versions** and pick
+   the latest `v0.2.0bN` (only needed until a stable release exists).
+6. Click **Download**, then **restart Home Assistant** (Settings → System → Restart).
+7. Add the integration (next section).
+
+**Updating:** HACS shows an update when a new release is published; download it and restart.
+
+### Manual
+
+Copy `custom_components/open_omada` from the [latest release](https://github.com/magnunscheffer/HA-Open-Omada/releases)
+into your `config/custom_components/` folder and restart Home Assistant.
 
 ## Configuration
 
-**Settings → Devices & services → Add integration → Open Omada**
+[![Open your Home Assistant instance and start setting up Open Omada.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=open_omada)
+
+Or: **Settings → Devices & services → Add integration → Open Omada**
 
 | Field | Description |
 |---|---|
