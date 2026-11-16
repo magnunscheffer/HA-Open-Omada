@@ -183,3 +183,27 @@ async def test_dpi_auth_error_starts_reauth(hass: HomeAssistant, fake_client, co
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
     assert any(f["context"]["source"] == "reauth" for f in hass.config_entries.flow.async_progress())
+
+
+async def test_entities_built_once_and_ids_predicted(hass: HomeAssistant, fake_client, config_entry, caplog) -> None:
+    from custom_components.open_omada import sensor
+
+    built = 0
+    original = sensor.OmadaDeviceSensor.__init__
+
+    def counting(self, *a, **kw):
+        nonlocal built
+        built += 1
+        original(self, *a, **kw)
+
+    sensor.OmadaDeviceSensor.__init__ = counting
+    try:
+        await _setup(hass, config_entry)
+        first = built
+        await config_entry.runtime_data.async_refresh()
+        await config_entry.runtime_data.async_refresh()
+        await hass.async_block_till_done()
+        assert first > 0 and built == first  # refreshes construct nothing new
+    finally:
+        sensor.OmadaDeviceSensor.__init__ = original
+    assert "Unique id mismatch" not in caplog.text

@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .api.models import Gateway, Switch
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
-from .entity import OmadaDeviceEntity
+from .entity import NewEntities, OmadaDeviceEntity
 
 PARALLEL_UPDATES = 0
 
@@ -24,26 +24,24 @@ async def async_setup_entry(
 
     @callback
     def _add_new() -> None:
-        new: list[BinarySensorEntity] = []
+        new = NewEntities(known)
         for mac, ref in coordinator.devices.items():
-            cands: list[BinarySensorEntity] = [OmadaOnlineSensor(coordinator, mac)]
-            if isinstance(ref.node, Gateway):
-                for w in ref.node.wans:
-                    cands += [OmadaWanBinary(coordinator, mac, w.port, "link"),
-                              OmadaWanBinary(coordinator, mac, w.port, "internet"),
-                              OmadaWanBinary(coordinator, mac, w.port, "in_use")]
-            if isinstance(ref.node, Switch):
-                for p in ref.node.ports:
-                    cands.append(OmadaPortLink(coordinator, mac, p.port))
+            node = ref.node
+            new.add(f"{mac}_online", lambda mac=mac: OmadaOnlineSensor(coordinator, mac))
+            if isinstance(node, Gateway):
+                for w in node.wans:
+                    for kind in ("link", "internet", "in_use"):
+                        new.add(f"{mac}_wan{w.port}_{kind}",
+                                lambda k=kind, p=w.port, mac=mac: OmadaWanBinary(coordinator, mac, p, k))
+            if isinstance(node, Switch):
+                for p in node.ports:
+                    new.add(f"{mac}_port{p.port}_link", lambda n=p.port, mac=mac: OmadaPortLink(coordinator, mac, n))
                     if p.poe_active is not None:
-                        cands.append(OmadaPoePowering(coordinator, mac, p.port))
-            for e in cands:
-                if e.unique_id not in known:
-                    known.add(e.unique_id)
-                    new.append(e)
+                        new.add(f"{mac}_port{p.port}_poe_powering",
+                                lambda n=p.port, mac=mac: OmadaPoePowering(coordinator, mac, n))
         coordinator.provided_unique_ids |= known
-        if new:
-            async_add_entities(new)
+        if new.items:
+            async_add_entities(new.items)
 
     _add_new()
     entry.async_on_unload(coordinator.async_add_listener(_add_new))

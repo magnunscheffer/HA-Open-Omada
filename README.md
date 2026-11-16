@@ -237,6 +237,9 @@ python3.14 -m venv .venv-test && .venv-test/bin/pip install pytest-homeassistant
 cp .env.example .env && .venv/bin/python scripts/omada_query.py   # live read-only dump
 ```
 
+`scripts/omada_query.py --json` prints MAC/IP addresses and serial numbers of your network; add
+`--redact` before sharing the output (device and host names are kept).
+
 The `custom_components/open_omada/api/` package has no Home Assistant dependency. Endpoint notes
 and the list of write paths validated on real hardware: [docs/api-reference.md](docs/api-reference.md).
 

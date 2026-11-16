@@ -44,7 +44,8 @@
       "cannot_connect": "Cannot connect to the controller.",
       "invalid_auth": "Invalid client ID or secret.",
       "unknown": "Unexpected error, see the logs.",
-      "https_required": "Use an https:// address (the client secret must not travel unencrypted)."
+      "https_required": "Use an https:// address (the client secret must not travel unencrypted).",
+      "invalid_url": "Enter only https://host or https://host:port (no user/password, path, query or fragment)."
     },
     "abort": {
       "already_configured": "This controller is already configured.",

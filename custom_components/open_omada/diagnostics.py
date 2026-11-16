@@ -5,19 +5,13 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
-from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET
+from .api.redact import REDACT_KEYS, redact
 from .coordinator import OmadaConfigEntry
 
-TO_REDACT = {
-    CONF_CLIENT_ID, CONF_CLIENT_SECRET, "omadacId", "omadac_id", "mac", "sn", "serial",
-    "ip", "publicIp", "sitePublicIp", "ipv6", "ipv6List", "wanPortIpv4Config",
-    "wanPortIpv6Config", "gateway", "priDns", "sndDns", "uplinkDeviceMac", "longitude", "latitude",
-    "url", "forwardIp", "wanIps", "limitedAddresses", "ip2", "gateway2", "priDns2", "sndDns2",
-    "serial_number", "dhcp",
-}
+# Device/host names and the controller URL (FQDN) are kept on purpose (owner decision).
+TO_REDACT = REDACT_KEYS
 
 
 def _plain(obj: Any) -> Any:
@@ -35,6 +29,6 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     snap = entry.runtime_data.data
     return {
-        "entry": async_redact_data(dict(entry.data), TO_REDACT),
-        "snapshot": async_redact_data(_plain(snap), TO_REDACT),
+        "entry": redact(dict(entry.data)),
+        "snapshot": redact(_plain(snap)),
     }

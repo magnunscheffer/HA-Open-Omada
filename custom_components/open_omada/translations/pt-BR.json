@@ -44,7 +44,8 @@
       "cannot_connect": "Não foi possível conectar ao controller.",
       "invalid_auth": "Client ID ou secret inválido.",
       "unknown": "Erro inesperado, verifique os logs.",
-      "https_required": "Use um endereço https:// (o client secret não pode trafegar sem criptografia)."
+      "https_required": "Use um endereço https:// (o client secret não pode trafegar sem criptografia).",
+      "invalid_url": "Informe apenas https://host ou https://host:porta (sem usuário/senha, caminho, query ou fragmento)."
     },
     "abort": {
       "already_configured": "Este controller já está configurado.",

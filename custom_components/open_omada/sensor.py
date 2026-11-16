@@ -24,7 +24,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .api.models import AccessPoint, Gateway, Switch, Wan
 from .const import TOP_WAN_WINDOWS
 from .coordinator import DeviceRef, OmadaConfigEntry, OmadaCoordinator
-from .entity import OmadaControllerEntity, OmadaDeviceEntity
+from .entity import NewEntities, OmadaControllerEntity, OmadaDeviceEntity
 
 # Coordinator centralises updates; read-only platform.
 PARALLEL_UPDATES = 0
@@ -133,30 +133,30 @@ async def async_setup_entry(
 
     @callback
     def _add_new() -> None:
-        new: list[SensorEntity] = []
+        new = NewEntities(known)
         for mac, ref in coordinator.devices.items():
-            candidates: list[SensorEntity] = [
-                OmadaDeviceSensor(coordinator, mac, d)
-                for d in DEVICE_SENSORS
-                if d.key != "temperature" or (isinstance(ref.node, Gateway) and ref.node.temperature is not None)
-            ]
-            if isinstance(ref.node, Gateway):
-                candidates.append(OmadaActiveWanSensor(coordinator, mac))
-                candidates += [OmadaTopWanClientSensor(coordinator, mac, key) for key in TOP_WAN_WINDOWS]
-                for wan in ref.node.wans:
-                    candidates += [OmadaWanSensor(coordinator, mac, wan.port, d) for d in WAN_SENSORS]
-            if isinstance(ref.node, Switch):
-                candidates += [OmadaPortSpeedSensor(coordinator, mac, p.port) for p in ref.node.ports]
-                candidates += [
-                    OmadaPoePowerSensor(coordinator, mac, p.port) for p in ref.node.ports if p.poe_power_w is not None
-                ]
-            for entity in candidates:
-                if entity.unique_id not in known:
-                    known.add(entity.unique_id)
-                    new.append(entity)
+            node = ref.node
+            for d in DEVICE_SENSORS:
+                if d.key != "temperature" or (isinstance(node, Gateway) and node.temperature is not None):
+                    new.add(f"{mac}_{d.key}", lambda d=d, mac=mac: OmadaDeviceSensor(coordinator, mac, d))
+            if isinstance(node, Gateway):
+                new.add(f"{mac}_active_wan", lambda mac=mac: OmadaActiveWanSensor(coordinator, mac))
+                for key in TOP_WAN_WINDOWS:
+                    new.add(f"{mac}_top_wan_{key}", lambda k=key, mac=mac: OmadaTopWanClientSensor(coordinator, mac, k))
+                for wan in node.wans:
+                    for d in WAN_SENSORS:
+                        new.add(f"{mac}_wan{wan.port}_{d.key}",
+                                lambda d=d, p=wan.port, mac=mac: OmadaWanSensor(coordinator, mac, p, d))
+            if isinstance(node, Switch):
+                for p in node.ports:
+                    new.add(f"{mac}_port{p.port}_speed",
+                            lambda n=p.port, mac=mac: OmadaPortSpeedSensor(coordinator, mac, n))
+                    if p.poe_power_w is not None:
+                        new.add(f"{mac}_port{p.port}_poe_power",
+                                lambda n=p.port, mac=mac: OmadaPoePowerSensor(coordinator, mac, n))
         coordinator.provided_unique_ids |= known
-        if new:
-            async_add_entities(new)
+        if new.items:
+            async_add_entities(new.items)
 
     _add_new()
     entry.async_on_unload(coordinator.async_add_listener(_add_new))

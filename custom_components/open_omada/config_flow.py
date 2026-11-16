@@ -41,12 +41,31 @@ REAUTH_SCHEMA = vol.Schema({vol.Required(CONF_CLIENT_ID): str, vol.Required(CONF
 
 
 def _normalize_url(data: dict[str, Any]) -> str | None:
-    """Strip a trailing slash; return an error key unless the URL is https://host."""
-    url = str(data[CONF_URL]).strip().rstrip("/")
-    data[CONF_URL] = url
+    """Normalise the controller URL in place; return an error key if it is not acceptable.
+
+    Accepted: ``https://host[:port]`` (DNS name, IPv4 or [IPv6]) with an optional trailing "/".
+    Rejected: other schemes, embedded user/password, a path, query or fragment.
+    """
+    url = str(data[CONF_URL]).strip()
     parsed = urlparse(url)
-    if parsed.scheme != "https" or not parsed.hostname:
+    if parsed.scheme.lower() != "https":
         return "https_required"
+    try:
+        port = parsed.port  # raises ValueError on an invalid port
+    except ValueError:
+        return "invalid_url"
+    if (
+        not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        return "invalid_url"
+    host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+    data[CONF_URL] = f"https://{host}" + (f":{port}" if port else "")
     return None
 
 

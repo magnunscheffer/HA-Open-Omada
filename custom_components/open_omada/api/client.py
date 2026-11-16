@@ -48,6 +48,16 @@ MAX_PAGE_SIZE = 1000
 TOKEN_SAFETY_MARGIN = 120
 
 
+def _safe_error(err: BaseException) -> str:
+    """Describe a transport error without its text: aiohttp messages can embed the request
+    URL, and the token endpoint carries the refresh token in the query string."""
+    name = type(err).__name__
+    host, port = getattr(err, "host", None), getattr(err, "port", None)
+    if isinstance(host, str) and host:
+        return f"{name} ({host}:{port})" if port else f"{name} ({host})"
+    return name
+
+
 def format_mac(mac: str) -> str:
     """Return a MAC in the AA-BB-CC-DD-EE-FF form expected by the API."""
     return mac.replace(":", "-").upper()
@@ -136,7 +146,7 @@ class OmadaClient:
             # str(err) would include the request URL, whose query may carry the refresh token.
             raise OmadaConnectionError(f"{method} {path}: {type(err).__name__} {err.status}") from None
         except (TimeoutError, aiohttp.ClientError) as err:
-            raise OmadaConnectionError(f"{method} {path}: {type(err).__name__}: {err}") from None
+            raise OmadaConnectionError(f"{method} {path}: {_safe_error(err)}") from None
         if not isinstance(body, dict):
             raise OmadaApiError(-1, "unexpected response body", f"{method} {path}")
         return body

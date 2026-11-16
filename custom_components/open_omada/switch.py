@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .api.models import Switch, SwitchPort
 from .const import DOMAIN
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
-from .entity import OmadaControllerEntity, OmadaDeviceEntity, OmadaGatewayChild
+from .entity import NewEntities, OmadaControllerEntity, OmadaDeviceEntity, OmadaGatewayChild
 
 # Actions hit the controller; one at a time.
 PARALLEL_UPDATES = 1
@@ -29,27 +29,29 @@ async def async_setup_entry(
 
     @callback
     def _add_new() -> None:
-        new: list[SwitchEntity] = []
-
-        def add(entity: SwitchEntity) -> None:
-            if entity.unique_id not in known:
-                known.add(entity.unique_id)
-                new.append(entity)
-
+        new = NewEntities(known)
+        oid = coordinator.data.omadac_id
         for site_id, ssid_id in coordinator.ssids:
-            add(OmadaSsidSwitch(coordinator, site_id, ssid_id))
-        for site_id, kind, rule_id in coordinator.rules:
-            add(OmadaRuleSwitch(coordinator, site_id, kind, rule_id))
+            new.add(f"{oid}_{site_id}_ssid_{ssid_id}",
+                    lambda s=site_id, i=ssid_id: OmadaSsidSwitch(coordinator, s, i))
+        for (site_id, kind, rule_id), (site, _rule) in coordinator.rules.items():
+            if not site.gateways:
+                continue
+            gw = site.gateways[0].device.mac
+            new.add(f"{gw}_{kind}_{rule_id}",
+                    lambda s=site_id, k=kind, r=rule_id: OmadaRuleSwitch(coordinator, s, k, r))
         for mac, ref in coordinator.devices.items():
             if isinstance(ref.node, Switch):
                 for port in ref.node.ports:
                     if not port.lag_member:
-                        add(OmadaPortSwitch(coordinator, mac, port.port))
+                        new.add(f"{mac}_port{port.port}_enabled",
+                                lambda n=port.port, mac=mac: OmadaPortSwitch(coordinator, mac, n))
                     if port.poe_enabled is not None:
-                        add(OmadaPoeSwitch(coordinator, mac, port.port))
+                        new.add(f"{mac}_port{port.port}_poe",
+                                lambda n=port.port, mac=mac: OmadaPoeSwitch(coordinator, mac, n))
         coordinator.provided_unique_ids |= known
-        if new:
-            async_add_entities(new)
+        if new.items:
+            async_add_entities(new.items)
 
     _add_new()
     entry.async_on_unload(coordinator.async_add_listener(_add_new))

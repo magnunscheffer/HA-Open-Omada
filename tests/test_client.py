@@ -123,3 +123,25 @@ async def test_concurrent_expired_token_refreshes_once(env):
     await client.get_sites()
     await client._ensure_token(force=True, rejected="AT-1")
     assert fake.tokens_issued == issued + 1
+
+
+class _ExplodingSession:
+    """Session whose requests fail with an aiohttp error whose text contains the full URL."""
+
+    def request(self, method, url, **kw):
+        query = "&".join(f"{k}={v}" for k, v in (kw.get("params") or {}).items())
+        raise aiohttp.InvalidURL(f"{url}?{query}")
+
+
+async def test_transport_errors_never_leak_url_or_refresh_token():
+    from api import OmadaConnectionError
+
+    client = OmadaClient(_ExplodingSession(), "https://omada.test:8043", "id", "secret", omadac_id=OID)
+    client._refresh_token = "RT-SUPERSECRET"
+    client._access_token = "AT-SUPERSECRET"
+    with pytest.raises(OmadaConnectionError) as exc:
+        await client._raw("POST", "/openapi/authorize/token",
+                          params={"grant_type": "refresh_token", "refresh_token": "RT-SUPERSECRET"}, auth=False)
+    text = f"{exc.value} {exc.value!r} {exc.value.__cause__!r}"
+    assert "SUPERSECRET" not in text and "refresh_token=" not in text
+    assert "InvalidURL" in text

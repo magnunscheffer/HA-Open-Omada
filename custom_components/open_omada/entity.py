@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 
 from homeassistant.const import CONF_URL
 from homeassistant.exceptions import HomeAssistantError
@@ -15,7 +15,7 @@ from homeassistant.helpers.device_registry import (
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import OmadaError
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, LOGGER, MANUFACTURER
 from .coordinator import DeviceRef, OmadaCoordinator
 
 
@@ -112,3 +112,25 @@ class OmadaGatewayChild(OmadaDeviceEntity):
     def __init__(self, coordinator: OmadaCoordinator, site_id: str, key: str) -> None:
         site = next(s for s in coordinator.data.sites if s.site.id == site_id)
         super().__init__(coordinator, site.gateways[0].device.mac, key)
+
+
+class NewEntities:
+    """Collect entities for unique_ids not added yet; build them only when new.
+
+    Avoids constructing every entity (DeviceInfo, translations) on each coordinator update.
+    """
+
+    def __init__(self, known: set[str]) -> None:
+        self.known = known
+        self.items: list = []
+
+    def add(self, unique_id: str, factory: Callable[[], object]) -> None:
+        if unique_id in self.known:
+            return
+        entity = factory()
+        if entity.unique_id != unique_id:  # defensive: predicted id must match the entity's
+            LOGGER.warning("Unique id mismatch: predicted %s, entity %s", unique_id, entity.unique_id)
+            if entity.unique_id in self.known:
+                return
+        self.known.add(entity.unique_id)
+        self.items.append(entity)

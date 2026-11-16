@@ -49,9 +49,11 @@ class FakeClient:
         return [{"siteId": SITE, "name": "Home"}]
 
     async def get_devices(self, site):
-        base = {"status": 1, "firmwareVersion": "1.0", "cpuUtil": 5, "memUtil": 40, "uptime": "1day(s) 2h 3m 4s"}
+        base = {"status": 1, "firmwareVersion": "1.0", "cpuUtil": 5, "memUtil": 40, "uptime": "1day(s) 2h 3m 4s",
+                "ip": "192.168.77.10", "publicIp": "203.0.113.7", "sn": "SNSECRET123",
+                "uplinkDeviceMac": "AA-00-00-00-00-09"}
         return [
-            {**base, "mac": GW, "name": "fw1", "type": "gateway", "model": "ER605 v2.0"},
+            {**base, "mac": GW, "name": "fw1.lab.example", "type": "gateway", "model": "ER605 v2.0"},
             {**base, "mac": SW, "name": "sw1", "type": "switch", "subtype": "smart", "model": "SG2218P"},
             {**base, "mac": AP, "name": "ap1", "type": "ap", "model": "EAP670"},
         ][: 2 if self.hide_ap else 3]

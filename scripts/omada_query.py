@@ -3,6 +3,11 @@
 Usage:
     .venv/bin/python scripts/omada_query.py            # tree view
     .venv/bin/python scripts/omada_query.py --json     # snapshot as JSON
+    .venv/bin/python scripts/omada_query.py --json --redact   # JSON safe to share
+
+WARNING: the output contains network data (MAC and IP addresses, serial numbers, device
+names). Review it before sharing, or use --redact (same redaction as HA diagnostics;
+device/host names are kept).
     .venv/bin/python scripts/omada_query.py --site "My Site"
 
 Configuration comes from .env (see .env.example).
@@ -26,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "custom_components" / "open_omada"))
 
 from api import OmadaClient, OmadaError  # noqa: E402
+from api.redact import redact  # noqa: E402
 from api.snapshot import fetch_snapshot  # noqa: E402
 
 
@@ -107,7 +113,10 @@ def _to_jsonable(obj):
 
 async def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--json", action="store_true", help="print snapshot as JSON")
+    ap.add_argument("--json", action="store_true",
+                    help="print snapshot as JSON (contains MACs, IPs, serials: review before sharing)")
+    ap.add_argument("--redact", action="store_true",
+                    help="with --json: redact MACs, IPs, serials and credentials (names are kept)")
     ap.add_argument("--site", help="site name or id to limit the query")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -138,7 +147,8 @@ async def main() -> int:
             return 1
 
     if args.json:
-        print(json.dumps(_to_jsonable(snap), indent=2, ensure_ascii=False))
+        data = _to_jsonable(snap)
+        print(json.dumps(redact(data) if args.redact else data, indent=2, ensure_ascii=False))
     else:
         print_tree(snap)
     return 0
