@@ -31,8 +31,11 @@
       "active_wan": {
         "default": "mdi:wan"
       },
-      "top_wan_client": {
+      "top_wan_24h": {
         "default": "mdi:account-network"
+      },
+      "top_wan_10m": {
+        "default": "mdi:speedometer"
       }
     },
     "switch": {

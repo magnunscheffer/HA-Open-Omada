@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import OmadaAuthError, OmadaClient, OmadaError
 from .api.models import AccessPoint, ControllerSnapshot, Gateway, Rule, SiteSnapshot, Ssid, Switch, TopWanClients
 from .api.snapshot import fetch_snapshot, fetch_top_wan_clients
-from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TOP_WAN_INTERVAL
+from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TOP_WAN_WINDOWS
 
 type OmadaConfigEntry = ConfigEntry[OmadaCoordinator]
 
@@ -54,8 +54,8 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         self.devices: dict[str, DeviceRef] = {}
         self.ssids: dict[tuple[str, str], tuple[SiteSnapshot, Ssid]] = {}
         self.rules: dict[tuple[str, str, str], tuple[SiteSnapshot, Rule]] = {}
-        # DPI "top WAN clients" per site, refreshed every TOP_WAN_INTERVAL (heavier query).
-        self.top_wan: dict[str, TopWanClients] = {}
+        # DPI "top WAN clients" per (site, window key), see TOP_WAN_WINDOWS.
+        self.top_wan: dict[tuple[str, str], TopWanClients] = {}
         # Last non-"Disable" profile of each switch port ("<mac>_<port>" -> profileId),
         # persisted so a port can be re-enabled with the profile it had.
         self.port_profiles: dict[str, str] = {}
@@ -63,7 +63,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         # Ports where the integration enabled profile override only to turn PoE off.
         self.poe_override_ports: set[str] = set()
         self._poe_store: Store[list[str]] = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.poe_override")
-        self._top_wan_at: dict[str, float] = {}
+        self._top_wan_at: dict[tuple[str, str], float] = {}
 
     @property
     def multi_site(self) -> bool:
@@ -98,7 +98,8 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
 
         for site in snap.sites:
             if site.gateways:
-                await self._refresh_top_wan(site.site.id)
+                for key in TOP_WAN_WINDOWS:
+                    await self._refresh_top_wan(site.site.id, key)
 
         self._apply_builtin_profiles(snap)
         self._remember_port_profiles(snap)
@@ -163,17 +164,19 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         if changed:
             self.save_port_profiles()
 
-    async def _refresh_top_wan(self, site_id: str) -> None:
-        if time.monotonic() - self._top_wan_at.get(site_id, -TOP_WAN_INTERVAL) < TOP_WAN_INTERVAL:
+    async def _refresh_top_wan(self, site_id: str, key: str) -> None:
+        window_s, every_s = TOP_WAN_WINDOWS[key]
+        slot = (site_id, key)
+        if time.monotonic() - self._top_wan_at.get(slot, -every_s) < every_s:
             return
         try:
-            self.top_wan[site_id] = await fetch_top_wan_clients(self.client, site_id)
+            self.top_wan[slot] = await fetch_top_wan_clients(self.client, site_id, window_s=window_s)
         except OmadaAuthError as err:
             raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="auth_failed") from err
         except OmadaError as err:
-            LOGGER.debug("Top WAN clients unavailable for site %s: %s", site_id, err)
-            self.top_wan.pop(site_id, None)
-        self._top_wan_at[site_id] = time.monotonic()
+            LOGGER.debug("Top WAN clients (%s) unavailable for site %s: %s", key, site_id, err)
+            self.top_wan.pop(slot, None)
+        self._top_wan_at[slot] = time.monotonic()
 
     def _remove_stale_devices(self, gone: set[str]) -> None:
         """Remove devices that disappeared from the controller (forgotten/moved)."""

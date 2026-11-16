@@ -114,8 +114,11 @@
       "active_wan": {
         "name": "WAN ativa"
       },
-      "top_wan_client": {
-        "name": "Maior consumo de WAN"
+      "top_wan_24h": {
+        "name": "Maior consumo de WAN (24h)"
+      },
+      "top_wan_10m": {
+        "name": "Maior consumo de WAN (10 min)"
       }
     },
     "switch": {

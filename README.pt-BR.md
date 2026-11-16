@@ -56,8 +56,13 @@ os clientes que mais usam internet, em barras, a partir do DPI do gateway.
 
 ```yaml
 type: custom:open-omada-top-wan-card
-entity: sensor.<gateway>_top_wan_client
+entity: sensor.<gateway>_top_wan_client_10_min   # ou ..._24h
 ```
+
+Dois sensores alimentam o card: **Top WAN client (10 min)**, mostrado como velocidade média
+(Mbit/s), e **Top WAN client (24h)**, mostrado como total (MB/GB). O DPI agrupa o tráfego em blocos
+de ~5 minutos, então 10 minutos é o mais próximo de tempo real; as 24 h se completam no primeiro dia
+após ligar o DPI.
 
 Depois de atualizar a integração, recarregue a página do navegador (Ctrl/⌘ + Shift + R). Exige DPI
 ligado no gateway.

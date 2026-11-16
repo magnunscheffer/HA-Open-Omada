@@ -99,10 +99,16 @@ using the most internet traffic as a bar ranking, read from the gateway DPI.
 
 ```yaml
 type: custom:open-omada-top-wan-card
-entity: sensor.<gateway>_top_wan_client
+entity: sensor.<gateway>_top_wan_client_10_min   # or ..._24h
 title: Top WAN usage   # optional
 max: 5                 # optional, 1–5
+display: auto          # optional: auto | rate | total
 ```
+
+Two sensors feed it: **Top WAN client (10 min)** — shown as average speed (Mbit/s) — and
+**Top WAN client (24h)** — shown as total (MB/GB). The gateway DPI aggregates traffic in ~5-minute
+buckets, so 10 minutes is the closest to real time; 24 h fills up over the first day after DPI is
+enabled.
 
 After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
 Requires DPI enabled on the gateway.

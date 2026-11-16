@@ -22,6 +22,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .api.models import AccessPoint, Gateway, Switch, Wan
+from .const import TOP_WAN_WINDOWS
 from .coordinator import DeviceRef, OmadaConfigEntry, OmadaCoordinator
 from .entity import OmadaControllerEntity, OmadaDeviceEntity
 
@@ -141,7 +142,7 @@ async def async_setup_entry(
             ]
             if isinstance(ref.node, Gateway):
                 candidates.append(OmadaActiveWanSensor(coordinator, mac))
-                candidates.append(OmadaTopWanClientSensor(coordinator, mac))
+                candidates += [OmadaTopWanClientSensor(coordinator, mac, key) for key in TOP_WAN_WINDOWS]
                 for wan in ref.node.wans:
                     candidates += [OmadaWanSensor(coordinator, mac, wan.port, d) for d in WAN_SENSORS]
             if isinstance(ref.node, Switch):
@@ -272,16 +273,18 @@ class OmadaActiveWanSensor(OmadaDeviceEntity, SensorEntity):
 
 
 class OmadaTopWanClientSensor(OmadaDeviceEntity, SensorEntity):
-    """Biggest internet consumer in the last hour; top 5 in attributes (gateway DPI)."""
+    """Biggest internet consumer in a DPI window (last 10 min or 24 h); top 5 in attributes."""
 
-    _attr_translation_key = "top_wan_client"
-
-    def __init__(self, coordinator: OmadaCoordinator, mac: str) -> None:
-        super().__init__(coordinator, mac, "top_wan_client")
+    def __init__(self, coordinator: OmadaCoordinator, mac: str, key: str) -> None:
+        super().__init__(coordinator, mac, f"top_wan_{key}")
+        self.key = key
+        self._attr_translation_key = f"top_wan_{key}"
 
     @property
     def _top(self):
-        return self.coordinator.top_wan.get(self.site_id) if self.mac in self.coordinator.devices else None
+        if self.mac not in self.coordinator.devices:
+            return None
+        return self.coordinator.top_wan.get((self.site_id, self.key))
 
     @property
     def available(self) -> bool:
@@ -300,12 +303,14 @@ class OmadaTopWanClientSensor(OmadaDeviceEntity, SensorEntity):
         if top is None:
             return {}
         mb = lambda b: round(b / 1_000_000, 1)  # noqa: E731
+        mbps = lambda b: round(b * 8 / 1_000_000 / top.window_s, 2)  # noqa: E731  average over the window
         return {
             "dpi_enabled": top.dpi_enabled,
             "window_minutes": top.window_s // 60,
             "top_clients": [
                 {"name": c.name, "mac": c.mac, "download_mb": mb(c.download_bytes),
-                 "upload_mb": mb(c.upload_bytes), "total_mb": mb(c.total_bytes)}
+                 "upload_mb": mb(c.upload_bytes), "total_mb": mb(c.total_bytes),
+                 "rate_mbps": mbps(c.total_bytes)}
                 for c in top.clients
             ],
         }

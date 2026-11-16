@@ -114,8 +114,11 @@
       "active_wan": {
         "name": "Active WAN"
       },
-      "top_wan_client": {
-        "name": "Top WAN client"
+      "top_wan_24h": {
+        "name": "Top WAN client (24h)"
+      },
+      "top_wan_10m": {
+        "name": "Top WAN client (10 min)"
       }
     },
     "switch": {

@@ -46,8 +46,12 @@ async def test_entity_states(hass: HomeAssistant, fake_client, config_entry) -> 
     assert pf.state == "on" and pf.attributes["forward_ip"] == "10.0.0.5"
     assert hass.states.get(_eid(hass, "sensor", f"{GW}_active_wan")).state == "WAN1"
     assert hass.states.get(_eid(hass, "binary_sensor", f"{GW}_wan1_in_use")).state == "on"
-    top = hass.states.get(_eid(hass, "sensor", f"{GW}_top_wan_client"))
-    assert top.state == "Laptop" and top.attributes["top_clients"][0]["total_mb"] == 3.5
+    for key, window in (("10m", 10), ("24h", 1440)):
+        top = hass.states.get(_eid(hass, "sensor", f"{GW}_top_wan_{key}"))
+        assert top.state == "Laptop" and top.attributes["window_minutes"] == window
+        assert top.attributes["top_clients"][0]["total_mb"] == 3.5
+    rate = hass.states.get(_eid(hass, "sensor", f"{GW}_top_wan_10m")).attributes["top_clients"][0]["rate_mbps"]
+    assert rate == round(3_500_000 * 8 / 1_000_000 / 600, 2)
     ssid = hass.states.get(_eid(hass, "switch", f"{OID}_site1_ssid_s1"))
     assert ssid.state == "on" and ssid.attributes["access_points"] == ["ap1"]
 
