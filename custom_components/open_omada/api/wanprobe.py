@@ -21,9 +21,11 @@ from dataclasses import dataclass, field
 GOOD, POOR, OFFLINE, UNKNOWN = "good", "poor", "offline", "unknown"
 
 # Owner decision ("misto"): one public DNS pair + the hosts of the original script, 3 per WAN.
+# Quad9 instead of 1.1.1.1/1.0.0.1: those are often set as the WAN DNS, and the gateway routes
+# its own WAN DNS servers itself, so a probe on them cannot be pinned to a WAN.
 DEFAULT_PROBES = {
-    1: ["1.1.1.1", "nic.br", "ec2.sa-east-1.amazonaws.com"],
-    2: ["1.0.0.1", "iaas.sa-saopaulo-1.oraclecloud.com", "8.8.4.4"],
+    1: ["9.9.9.9", "nic.br", "ec2.sa-east-1.amazonaws.com"],
+    2: ["149.112.112.112", "iaas.sa-saopaulo-1.oraclecloud.com", "8.8.4.4"],
 }
 
 _TLS = ssl.create_default_context()
