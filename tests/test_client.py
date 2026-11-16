@@ -25,6 +25,7 @@ class FakeController:
         self.app.router.add_get(f"/openapi/v1/{OID}/redirect", self.redirect)
         self.port_calls: list[dict] = []
         self.app.router.add_patch(f"/openapi/v1/{OID}/sites/s1/switches/AA-BB-CC-00-00-01/ports/2", self.port_patch)
+        self.app.router.add_get(f"/openapi/v1/{OID}/sites/s1/internet", self.internet)
 
     async def token(self, req: web.Request) -> web.Response:
         if self.bad_client:
@@ -44,6 +45,14 @@ class FakeController:
     async def port_patch(self, req: web.Request) -> web.Response:
         self.port_calls.append(await req.json())
         return web.json_response({"errorCode": 0})
+
+    async def internet(self, req: web.Request) -> web.Response:
+        return web.json_response({"errorCode": 0, "result": {"wanPortSettings": [
+            {"portName": "WAN1", "wanPortIpv4Setting": {"ipv4Pppoe": {"primaryDns": "192.0.2.53",
+                                                                       "secondaryDns": "198.51.100.53"}}},
+            {"portName": "WAN2", "wanPortIpv4Setting": {"ipv4Dhcp": {"primaryDns": "", "secondaryDns": None}}},
+            {"portName": "WAN3", "wanPortIpv4Setting": {"ipv4Static": {"primaryDns": "2001:db8::53"}}},
+        ]}})
 
     async def sites(self, req: web.Request) -> web.Response:
         self.auth_headers.append(req.headers.get("Authorization", ""))
@@ -145,3 +154,8 @@ async def test_transport_errors_never_leak_url_or_refresh_token():
     text = f"{exc.value} {exc.value!r} {exc.value.__cause__!r}"
     assert "SUPERSECRET" not in text and "refresh_token=" not in text
     assert "InvalidURL" in text
+
+
+async def test_wan_dns_servers_collects_ipv4_dns_of_every_wan(env):
+    fake, client = env
+    assert await client.get_wan_dns_servers("s1") == {"192.0.2.53", "198.51.100.53"}

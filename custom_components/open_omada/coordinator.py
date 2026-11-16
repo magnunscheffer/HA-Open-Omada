@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import OmadaAuthError, OmadaClient, OmadaError
 from .api.models import AccessPoint, ControllerSnapshot, Gateway, Rule, SiteSnapshot, Ssid, Switch, TopWanClients
 from .api.snapshot import fetch_snapshot, fetch_top_wan_clients
-from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TOP_WAN_KEEP, TOP_WAN_WINDOWS
+from .const import DOMAIN, LOGGER, MANAGED_PREFIX, SCAN_INTERVAL, TOP_WAN_KEEP, TOP_WAN_WINDOWS
 
 type OmadaConfigEntry = ConfigEntry[OmadaCoordinator]
 
@@ -96,6 +96,8 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
             for ssid in site.ssids:
                 ssids[(site.site.id, ssid.id)] = (site, ssid)
             for rule in (*site.acls, *site.policy_routes, *site.port_forwards, *site.vpns):
+                if rule.kind == "policy_route" and rule.name.startswith(MANAGED_PREFIX):
+                    continue  # Enhanced WAN Control probe routes: not user switches
                 rules[(site.site.id, rule.kind, rule.id)] = (site, rule)
             for err in site.errors:
                 LOGGER.debug("Site %s partial error: %s", site.site.name, err)

@@ -16,6 +16,7 @@ Access tokens last 2h and refresh tokens 14 days. See docs/api-reference.md.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import time
 from typing import Any
@@ -397,6 +398,29 @@ class OmadaClient:
     async def get_wan_load_balance(self, site_id: str) -> dict:
         """Failover/load-balance config: linkBackup, primaryWans, backupWan, mode."""
         return await self.request("GET", self._site(site_id, "/internet/load-balance")) or {}
+
+    async def get_wan_dns_servers(self, site_id: str) -> set[str]:
+        """IPv4 DNS servers set on any WAN port (the gateway routes them itself, ignoring policy routes)."""
+        result = await self.request("GET", self._site(site_id, "/internet")) or {}
+        found: set[str] = set()
+
+        def walk(obj: Any) -> None:
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if isinstance(value, str) and key.lower().endswith("dns"):
+                        try:
+                            if ipaddress.ip_address(value).version == 4:
+                                found.add(value)
+                        except ValueError:
+                            pass
+                    else:
+                        walk(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    walk(item)
+
+        walk(result.get("wanPortSettings") if isinstance(result, dict) else None)
+        return found
 
     async def get_dpi_enabled(self, site_id: str) -> bool:
         result = await self.request("GET", self._site(site_id, "/applicationControl/status")) or {}

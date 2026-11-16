@@ -27,7 +27,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .api import OmadaError
 from .api.wanprobe import GOOD, OFFLINE, POOR, ProbeTarget, WanQuality, measure_wan, resolve_ipv4
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, MANAGED_PREFIX
 
 SIGNAL_WAN_CONTROL = f"{DOMAIN}_wan_control_update"
 EVENT_WAN_FAILOVER = f"{DOMAIN}_wan_failover"
@@ -69,6 +69,7 @@ class WanControl:
         self.last_switch_at: float | None = None
         self.last_action: dict[str, Any] | None = None
         self.error: str | None = None
+        self.skipped: dict[int, list[str]] = {}  # probes that cannot be pinned (WAN DNS servers)
         self._notified: str | None = None
         self._synced_at = 0.0
         self._unsub = None
@@ -124,7 +125,7 @@ class WanControl:
 
     # ------------------------------------------------------- managed objects
     def _name(self, what: str) -> str:
-        return f"Open Omada probe {self.tag} {what}"
+        return f"{MANAGED_PREFIX}{self.tag} {what}"
 
     async def _sync_objects(self) -> None:
         """Create/update the IP groups and policy routes that pin probes to each WAN."""
@@ -151,7 +152,12 @@ class WanControl:
 
         source = await ensure_group(self._name("HA"), [ha_ip])
         routes = {r.get("name"): r for r in await self.client.get_policy_routes(sid)}
-        ours: list[str] = []
+        try:
+            wan_dns = await self.client.get_wan_dns_servers(sid)
+        except OmadaError as err:
+            LOGGER.debug("Could not read the WAN DNS servers: %s", err)
+            wan_dns = set()
+        self.skipped = {}
         for wan in site.gateways[0].wans:
             if wan.port not in wan_ids:
                 continue
@@ -163,7 +169,14 @@ class WanControl:
                 except OSError as err:
                     LOGGER.warning("Probe host %s does not resolve: %s", host, err)
                     continue
-                if ips:
+                if ips and ips[0] in wan_dns:
+                    # The gateway routes its own WAN DNS servers itself: a policy route cannot pin them.
+                    LOGGER.warning(
+                        "Probe %s (%s) is a DNS server of a WAN on the gateway and cannot be pinned to "
+                        "WAN%s; it is skipped. Choose another probe or change the WAN DNS", host, ips[0], wan.port,
+                    )
+                    self.skipped.setdefault(wan.port, []).append(host)
+                elif ips:
                     targets.append(ProbeTarget(host, ips[0]))
             state = self.wans.setdefault(wan.port, WanState(wan.port, wan.name))
             state.name, state.targets = wan.name, targets
@@ -300,7 +313,7 @@ class WanControl:
 
 async def async_remove_managed_objects(hass: HomeAssistant, client) -> None:
     """Delete this HA instance's probe objects on every site (used when the entry is removed)."""
-    prefix = f"Open Omada probe {(await instance_id.async_get(hass))[:6]} "
+    prefix = f"{MANAGED_PREFIX}{(await instance_id.async_get(hass))[:6]} "
     await client.get_controller_info()
     for site in await client.get_sites():
         sid = site["siteId"]

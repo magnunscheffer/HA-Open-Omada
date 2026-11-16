@@ -56,3 +56,6 @@ WAN_CONTROL_DEFAULTS = {
 # Bundled dashboard card (served by the integration, loaded in every dashboard).
 CARD_FILE = "open-omada-top-wan-card.js"
 CARD_URL = f"/{DOMAIN}/{CARD_FILE}"
+
+# Omada objects created by Enhanced WAN Control start with this name.
+MANAGED_PREFIX = "Open Omada probe "

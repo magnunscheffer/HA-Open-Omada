@@ -145,3 +145,28 @@ async def test_options_reject_the_same_probe_on_both_wans(hass, fake_client, set
 async def config_refresh(hass, entry):
     await entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
+
+
+async def test_probe_on_a_wan_dns_server_is_skipped(hass, fake_client, setup):
+    """The gateway routes its WAN DNS servers itself, so such a probe cannot be pinned."""
+    entry, ctl, _ = setup
+    fake_client.wan_dns = {"1.1.1.1", "8.8.8.8"}
+    await ctl._sync_objects()
+    names = {name: ips for name, ips in fake_client.groups.values()}
+    assert names[f"Open Omada probe {ctl.tag} WAN1"] == ["192.0.2.10"]
+    assert [t.ip for t in ctl.wans[1].targets] == ["192.0.2.10"]
+    assert ctl.skipped == {1: ["1.1.1.1"]}
+    await ctl._async_cycle()
+    await hass.async_block_till_done()
+    state = hass.states.get(_eid(hass, "sensor", f"{GW}_wanctl1_quality"))
+    assert state.attributes["skipped_probes"] == ["1.1.1.1"]
+
+
+async def test_probe_routes_are_not_exposed_as_switches(hass, fake_client, setup):
+    entry, ctl, _ = setup
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    uids = {e.unique_id for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)}
+    assert f"{GW}_policy_route_pr1" in uids
+    probe_ids = [r["id"] for r in fake_client.routes]
+    assert probe_ids and not any(f"{GW}_policy_route_{rid}" in uids for rid in probe_ids)

@@ -37,6 +37,7 @@ class FakeClient:
         self.primary, self.backup = "1_aaa", "2_bbb"
         self.groups: dict = {}
         self.routes: list = []
+        self.wan_dns: set = set()
         self.fail_dpi_auth = False
         self.hide_ap = False
         self.port2_status = 1
@@ -187,6 +188,9 @@ class FakeClient:
         self.calls.append(("set_primary", wan_id))
         if wan_id != self.primary:
             self.primary, self.backup = wan_id, self.primary
+
+    async def get_wan_dns_servers(self, site):
+        return set(self.wan_dns)
 
     async def get_ip_groups(self, site):
         return [{"groupId": gid, "name": name, "ipList": ips} for gid, (name, ips) in self.groups.items()]

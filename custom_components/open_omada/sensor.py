@@ -405,6 +405,7 @@ class WanQualitySensor(WanControlEntity, SensorEntity):
             "stable_minutes": self.ctl.stable_minutes(self.port),
             "samples": q.samples if q else 0,
             "updated": dt_util.utc_from_timestamp(q.at).isoformat() if q else None,
+            "skipped_probes": self.ctl.skipped.get(self.port, []),
         }
 
 
