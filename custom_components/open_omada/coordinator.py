@@ -43,6 +43,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         )
         self.client = client
         self.controller_device_id: str | None = None
+        self.data_started_at: float = 0.0
         # unique_ids the platforms currently provide (filled by each platform).
         self.provided_unique_ids: set[str] = set()
         # Each platform's "already added" unique_ids; cleared for a device when it is removed so
@@ -70,6 +71,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         return len(self.data.sites) > 1
 
     async def _async_update_data(self) -> ControllerSnapshot:
+        started = time.monotonic()
         try:
             snap = await fetch_snapshot(self.client)
         except OmadaAuthError as err:
@@ -105,6 +107,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         self._remember_port_profiles(snap)
         self._remove_stale_devices(set(self.devices) - set(devices))
         self.devices, self.ssids, self.rules = devices, ssids, rules
+        self.data_started_at = started  # when the controller was read for this data
         return snap
 
     def new_known_set(self) -> set[str]:

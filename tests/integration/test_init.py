@@ -230,3 +230,25 @@ async def test_rule_toggle_puts_the_live_rule(hass: HomeAssistant, fake_client, 
         "switch", "turn_off", {"entity_id": _eid(hass, "switch", f"{GW}_acl_acl1")}, blocking=True
     )
     assert fake_client.calls[-1] == ("acl", "Deny-DMZ (edited in Omada)", False)
+
+
+async def test_optimistic_state_survives_a_refresh_started_before_the_action(
+    hass: HomeAssistant, fake_client, config_entry
+) -> None:
+    await _setup(hass, config_entry)
+    coord = config_entry.runtime_data
+    eid = _eid(hass, "switch", f"{SW}_port1_enabled")
+
+    async def no_refresh() -> None:  # the refresh after the action has not happened yet
+        return None
+
+    coord.async_request_refresh = no_refresh
+    await hass.services.async_call("switch", "turn_off", {"entity_id": eid}, blocking=True)
+    assert hass.states.get(eid).state == "off"
+    # Simulate data read before the action (port still "on") arriving after it.
+    port = next(p for p in coord.devices[SW].node.ports if p.port == 1)
+    port.enabled, port.profile_id = True, "p-trunk"
+    coord.data_started_at = 0.0
+    coord.async_update_listeners()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid).state == "off"

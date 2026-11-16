@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable
 
 from homeassistant.const import CONF_URL
@@ -25,9 +26,12 @@ class OmadaEntity(CoordinatorEntity[OmadaCoordinator]):
     _attr_has_entity_name = True
     # State accepted by the controller but not yet confirmed by a refresh.
     _optimistic: bool | None = None
+    _optimistic_at: float = 0.0
 
     def _handle_coordinator_update(self) -> None:
-        self._optimistic = None
+        # Keep the optimistic state while the data was read before the action finished.
+        if self._optimistic is not None and self.coordinator.data_started_at >= self._optimistic_at:
+            self._optimistic = None
         super()._handle_coordinator_update()
 
     async def _call(self, action: Awaitable[None], optimistic: bool | None = None) -> None:
@@ -42,6 +46,7 @@ class OmadaEntity(CoordinatorEntity[OmadaCoordinator]):
             ) from err
         if optimistic is not None:
             self._optimistic = optimistic
+            self._optimistic_at = time.monotonic()
             self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 
