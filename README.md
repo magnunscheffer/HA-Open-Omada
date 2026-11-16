@@ -21,8 +21,9 @@ Community integration for **TP-Link Omada SDN** that uses the controller's **off
 | PoE on/off and live PoE power | ✅ | ✅ |
 | Active WAN (failover), WAN throughput/latency/loss | ✅ | link/online only |
 | Top WAN clients (gateway DPI) | ✅ | — |
-| Client reconnect / block / unblock | ✅ | reconnect only |
+| Client reconnect / block / unblock / rename | ✅ | reconnect, rename |
 | Reboot any device | ✅ | — |
+| VPN on/off, WAN internet on/off, gateway LAN ports | ✅ | ✅ |
 | Wi-Fi presence (device tracker), firmware updates | — | ✅ |
 
 ## Requirements
@@ -77,15 +78,19 @@ Re-authentication and reconfiguration are supported from the integration page.
 ## Devices and entities
 
 ```
-Omada Controller (service)   devices count · one switch per SSID (attribute: access_points)
-├─ Gateway                    online · CPU · memory · reboot · active WAN · top WAN client
+Omada Controller (service)   connected · devices count · one switch per SSID (attribute: access_points)
+├─ Gateway                    online · CPU · memory · reboot · active WAN · top WAN client (10 min / 24 h)
 │   ├─ per WAN               link · internet · in use · IP · download · upload · latency · loss
-│   └─ switches              ACLs · policy routes · port forwarding
+│   │                        internet connection switch*
+│   ├─ per LAN port          link (PoE delivery on gateways with PoE)
+│   └─ switches              ACLs · policy routes · port forwarding · VPNs
 ├─ Switch                     online · CPU · memory · reboot
 │   └─ per port              enabled · link · PoE on/off · PoE power · PoE powering · speed*
 └─ Access point               online · CPU · memory · reboot
 ```
-\* disabled by default (also: uptime).
+\* disabled by default (also: uptime, port speed). The WAN internet connection switch is disabled on
+purpose: turning off the WAN in use cuts the internet. Reconnecting a PPPoE WAN can take 30+ s and
+may get a new public IP.
 
 ### Dashboard card: Open Omada · Top WAN
 
@@ -184,6 +189,7 @@ interval.
 | `open_omada.reconnect_client` | `mac` |
 | `open_omada.block_client` | `mac` (Omada blocklist) |
 | `open_omada.unblock_client` | `mac` |
+| `open_omada.rename_client` | `mac`, `name` |
 
 `config_entry_id` is only needed with more than one controller.
 

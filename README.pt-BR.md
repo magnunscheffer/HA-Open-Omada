@@ -106,7 +106,11 @@ O controller atualiza as taxas das WANs cerca de uma vez por minuto, o mesmo int
 da integração.
 
 **Ações:** `open_omada.reconnect_client`, `open_omada.block_client`, `open_omada.unblock_client`
-(campo `mac`).
+(campo `mac`) e `open_omada.rename_client` (`mac`, `name`).
+
+Também: status das portas LAN do gateway, "Connected" do controller, switch por VPN e switch de
+conexão de internet por WAN (**desabilitado por padrão**: desligar a WAN em uso derruba a internet;
+religar uma WAN PPPoE pode levar 30+ s e trocar o IP público).
 
 ### Como os switches funcionam
 

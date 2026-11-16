@@ -43,6 +43,7 @@ _REAUTH_CODES = {ERR_TOKEN_EXPIRED, ERR_TOKEN_INVALID}
 _FATAL_AUTH_CODES = {ERR_BAD_CLIENT, ERR_AUTH_FAILED}
 
 DEFAULT_TIMEOUT = 30
+WAN_CONNECT_TIMEOUT = 120  # internet-state answers after the WAN (re)connects
 MAX_PAGE_SIZE = 1000
 # Renew the token a bit before it expires.
 TOKEN_SAFETY_MARGIN = 120
@@ -116,6 +117,7 @@ class OmadaClient:
         params: dict[str, Any] | None = None,
         json: Any = None,
         auth: bool = True,
+        request_timeout: aiohttp.ClientTimeout | None = None,
     ) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if auth:
@@ -129,7 +131,7 @@ class OmadaClient:
                     json=json,
                     headers=headers,
                     ssl=self._ssl,
-                    timeout=self._timeout,
+                    timeout=request_timeout or self._timeout,
                     allow_redirects=False,
                 ) as resp:
                     # Never use raise_for_status()/repr(err): aiohttp includes the
@@ -231,6 +233,7 @@ class OmadaClient:
         *,
         params: dict[str, Any] | None = None,
         json: Any = None,
+        request_timeout: aiohttp.ClientTimeout | None = None,
     ) -> Any:
         """Authenticated call. ``path`` may contain ``{omadacId}``."""
         if "{omadacId}" in path:
@@ -239,10 +242,10 @@ class OmadaClient:
             path = path.replace("{omadacId}", self.omadac_id)
         await self._ensure_token()
         used = self._access_token
-        body = await self._raw(method, path, params=params, json=json)
+        body = await self._raw(method, path, params=params, json=json, request_timeout=request_timeout)
         if body.get("errorCode") in _REAUTH_CODES:
             await self._ensure_token(force=True, rejected=used)
-            body = await self._raw(method, path, params=params, json=json)
+            body = await self._raw(method, path, params=params, json=json, request_timeout=request_timeout)
         return self._check(body, path)
 
     async def get_paged(self, path: str, params: dict[str, Any] | None = None) -> list[dict]:
@@ -483,11 +486,16 @@ class OmadaClient:
         await self.request("PATCH", self._site(site_id, f"/vpn/{vpn['id']}/status"), json={"status": on})
 
     async def set_wan_internet(self, site_id: str, gateway_mac: str, port: int, on: bool) -> None:
-        """Connect/disconnect the internet of a WAN port (POST .../internet-state)."""
+        """Connect/disconnect the internet of a WAN port (POST .../internet-state).
+
+        Connecting only answers after the WAN is up (a PPPoE re-dial took > 30 s on the ER605),
+        so this call gets a longer timeout. Verified on ER605 / controller 6.3.0.45.
+        """
         await self.request(
             "POST",
             self._site(site_id, f"/gateways/{format_mac(gateway_mac)}/internet-state"),
             json={"portId": port, "operation": 1 if on else 0},
+            request_timeout=aiohttp.ClientTimeout(total=WAN_CONNECT_TIMEOUT),
         )
 
 

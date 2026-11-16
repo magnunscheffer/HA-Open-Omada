@@ -103,4 +103,8 @@ trazem apenas o IP visto pelo controller local. Quando a WAN recebe IP global
 | SSID on/off via `PATCH …/wireless-network/ssids/{id}/enable` | ✅ |
 | ACL on/off via `PUT` do objeto completo | ✅ origem/destino/protocolo/index intactos |
 | Reboot via `POST …/devices/{mac}/reboot` | ✅ sw3 reiniciou (uptime zerou) |
+| Cliente: renomear via `PATCH …/clients/{mac}/name` `{name}` | ✅ iPhone renomeado e restaurado |
+| VPN on/off via `PATCH …/vpn/{id}/status` `{status}` | ✅ OpenVPN "Vivo": porta, WAN, redes e pool intactos |
+| Internet da WAN on/off via `POST …/gateways/{mac}/internet-state` `{portId: <nº da porta>, operation: 0\|1}` | ✅ WAN1 (PPPoE). Desligar é imediato; **religar só responde depois que o PPPoE reconecta (>30 s)** → timeout de 120 s. O PPPoE pode receber **outro IP público** |
+| Portas LAN do gateway (leitura) | `GET …/networks/{id}/vlan/{vlan}/ports` → `data[type=gateway].gatewayInfo.gatewayDetail.portStats` (`mode` 1 = LAN, `status` = link, `poe`); `GET …/gateways/{mac}/ports` não traz link |
 | Cliente: reconnect / block / unblock via `POST …/clients/{mac}/{acao}` | ✅ iPhone: reconectou (uptime 0), bloqueado (`insight/clients` → `block: true`), desbloqueado e voltou em ~10 s |
