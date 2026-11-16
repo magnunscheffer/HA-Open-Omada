@@ -81,7 +81,7 @@
         "name": "{name} PoE ativo"
       },
       "controller_connected": {
-        "name": "Controller conectado"
+        "name": "Conectado"
       }
     },
     "sensor": {

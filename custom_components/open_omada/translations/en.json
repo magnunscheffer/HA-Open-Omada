@@ -81,7 +81,7 @@
         "name": "{name} PoE delivery"
       },
       "controller_connected": {
-        "name": "Controller connected"
+        "name": "Connected"
       }
     },
     "sensor": {
