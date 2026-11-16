@@ -28,7 +28,7 @@ Community integration for **TP-Link Omada SDN** that uses the controller's **off
 ## Requirements
 
 - Omada Software Controller / OC200 / OC300 with Open API (tested on **6.3.0.45**)
-- Home Assistant **2026.3** or newer
+- Home Assistant **2026.10** or newer
 
 ## Create the Open API application in Omada
 
@@ -127,9 +127,9 @@ API application in Omada. Uninstall from HACS.
 ## Development
 
 ```bash
-python3.13 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest -q && .venv/bin/ruff check .              # API layer
-python3.13 -m venv .venv-test && .venv-test/bin/pip install pytest-homeassistant-custom-component
+python3.14 -m venv .venv-test && .venv-test/bin/pip install pytest-homeassistant-custom-component
 .venv-test/bin/python -m pytest tests/integration -q        # HA integration
 cp .env.example .env && .venv/bin/python scripts/omada_query.py   # live read-only dump
 ```

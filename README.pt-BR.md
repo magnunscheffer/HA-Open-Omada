@@ -9,7 +9,7 @@ Integração da comunidade para **TP-Link Omada SDN** usando a **Open API oficia
 ## Requisitos
 
 - Omada Software Controller / OC200 / OC300 com Open API (testado na **6.3.0.45**)
-- Home Assistant **2026.3** ou mais novo
+- Home Assistant **2026.10** ou mais novo
 
 ## Criar o aplicativo Open API no Omada
 
