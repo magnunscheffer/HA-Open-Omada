@@ -151,7 +151,8 @@ Um resultado ruim é confirmado com testes extras antes de contar.
 **Failover** (select *Auto WAN failover*):
 
 - `off`: só mede.
-- `notify` (padrão): dispara o evento `open_omada_wan_failover` com `dry_run: true` e não muda nada.
+- `notify` (padrão): não muda nada. Cria uma notificação persistente, que fica até você dispensar,
+  e dispara o evento `open_omada_wan_failover` com `dry_run: true`.
 - `automatic`: inverte primária e backup quando a WAN em uso está Poor ou Offline e a outra está
   Good.
 

@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -76,6 +77,10 @@ async def test_notify_mode_suggests_but_does_not_switch(hass, fake_client, setup
     await hass.async_block_till_done()
     assert [e["dry_run"] for e in events] == [True]
     assert not [c for c in fake_client.calls if c[0] == "set_primary"]
+    notes = persistent_notification._async_get_or_create_notifications(hass)
+    note = notes[f"{DOMAIN}_wan_failover_{entry.entry_id}"]
+    assert "WAN1" in note["message"] and "WAN2" in note["message"]
+    assert len([n for n in notes if n.startswith(f"{DOMAIN}_wan_failover")]) == 1
 
 
 async def test_automatic_failover_then_failback_after_stable_hour(hass, fake_client, setup):

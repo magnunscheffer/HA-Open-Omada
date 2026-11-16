@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import instance_id
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -288,6 +289,17 @@ class WanControl:
         LOGGER.info("WAN failover %s: %s -> %s (%s)", "suggested" if dry_run else "done",
                     data["from"], data["to"], reason)
         self.hass.bus.async_fire(EVENT_WAN_FAILOVER, data)
+        if dry_run:
+            # Notify mode: a notification that stays until the user dismisses it. A fixed id
+            # replaces the previous suggestion instead of piling them up.
+            persistent_notification.async_create(
+                self.hass,
+                f"Suggested switch from **{data['from']}** to **{data['to']}**: {reason}.\n\n"
+                "Auto WAN failover is set to *Notify only*, so nothing was changed. Use the "
+                "*Primary WAN* select to switch now, or set *Auto WAN failover* to *Automatic*.",
+                title="Open Omada: WAN failover suggested",
+                notification_id=f"{DOMAIN}_wan_failover_{self.coordinator.config_entry.entry_id}",
+            )
 
     # ------------------------------------------------------- manual control
     async def async_set_primary(self, port: int) -> None:
