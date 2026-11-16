@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .api.models import Gateway, Switch
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
-from .entity import NewEntities, OmadaDeviceEntity
+from .entity import NewEntities, OmadaControllerEntity, OmadaDeviceEntity
 
 PARALLEL_UPDATES = 0
 
@@ -29,6 +29,12 @@ async def async_setup_entry(
             node = ref.node
             new.add(f"{mac}_online", lambda mac=mac: OmadaOnlineSensor(coordinator, mac))
             if isinstance(node, Gateway):
+                for lp in node.lan_ports:
+                    new.add(f"{mac}_lan{lp.port}_link",
+                            lambda n=lp.port, mac=mac: OmadaGatewayLanBinary(coordinator, mac, n, "link"))
+                    if lp.poe_active is not None:
+                        new.add(f"{mac}_lan{lp.port}_poe",
+                                lambda n=lp.port, mac=mac: OmadaGatewayLanBinary(coordinator, mac, n, "poe"))
                 for w in node.wans:
                     for kind in ("link", "internet", "in_use"):
                         new.add(f"{mac}_wan{w.port}_{kind}",
@@ -43,6 +49,10 @@ async def async_setup_entry(
         if new.items:
             async_add_entities(new.items)
 
+    controller = OmadaControllerConnected(coordinator)
+    known.add(controller.unique_id)
+    coordinator.provided_unique_ids |= known
+    async_add_entities([controller])
     _add_new()
     entry.async_on_unload(coordinator.async_add_listener(_add_new))
 
@@ -142,3 +152,57 @@ class OmadaPoePowering(_PortBinary):
     @property
     def is_on(self) -> bool:
         return bool(self._p.poe_active)
+
+
+class OmadaControllerConnected(OmadaControllerEntity, BinarySensorEntity):
+    """Whether Home Assistant can currently read the Omada controller."""
+
+    _attr_translation_key = "controller_connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: OmadaCoordinator) -> None:
+        super().__init__(coordinator, "controller_connected")
+
+    @property
+    def available(self) -> bool:
+        return True  # this entity reports the connection itself
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.last_update_success
+
+
+class OmadaGatewayLanBinary(OmadaDeviceEntity, BinarySensorEntity):
+    """Link (or PoE delivery) of a gateway port in LAN mode."""
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str, port: int, kind: str) -> None:
+        super().__init__(coordinator, mac, f"lan{port}_{kind}")
+        self.port, self.kind = port, kind
+        self._attr_translation_key = f"gateway_lan_{kind}"
+        self._attr_device_class = (
+            BinarySensorDeviceClass.CONNECTIVITY if kind == "link" else BinarySensorDeviceClass.POWER
+        )
+        lp = self._lan
+        self._attr_translation_placeholders = {"name": lp.name if lp else f"LAN{port}"}
+
+    @property
+    def _lan(self):
+        node = self.ref.node if self.mac in self.coordinator.devices else None
+        if not isinstance(node, Gateway):
+            return None
+        return next((p for p in node.lan_ports if p.port == self.port), None)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.device_online and self._lan is not None
+
+    @property
+    def is_on(self) -> bool:
+        lp = self._lan
+        return bool(lp and (lp.link_up if self.kind == "link" else lp.poe_active))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object] | None:
+        lp = self._lan
+        return {"speed_mbps": lp.speed_mbps} if lp and self.kind == "link" else None

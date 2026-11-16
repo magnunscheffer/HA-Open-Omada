@@ -164,6 +164,28 @@ class Wan:
 
 
 @dataclass(slots=True)
+class GatewayLanPort:
+    """A gateway port in LAN mode (from the gateway detail ``portStats``)."""
+
+    port: int
+    name: str
+    link_up: bool
+    speed_mbps: int | None
+    poe_active: bool | None  # None when the gateway has no PoE
+
+    @classmethod
+    def from_api(cls, d: dict[str, Any], supports_poe: bool) -> GatewayLanPort:
+        link = d.get("status") == 1
+        return cls(
+            port=d["port"],
+            name=d.get("name") or f"LAN{d['port']}",
+            link_up=link,
+            speed_mbps=LINK_SPEED_MBPS.get(d.get("speed")) if link else None,
+            poe_active=bool(d.get("poe")) if supports_poe else None,
+        )
+
+
+@dataclass(slots=True)
 class Gateway:
     device: Device
     cpu: int | None
@@ -171,6 +193,7 @@ class Gateway:
     temperature: int | None
     wans: list[Wan]
     raw: dict[str, Any] = field(repr=False)
+    lan_ports: list[GatewayLanPort] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -320,7 +343,7 @@ class Rule:
     index: int | None
     name: str
     enabled: bool
-    kind: str  # "acl" | "policy_route" | "port_forward"
+    kind: str  # "acl" | "policy_route" | "port_forward" | "vpn"
     raw: dict[str, Any] = field(repr=False)
 
     @classmethod
@@ -337,6 +360,10 @@ class Rule:
     @classmethod
     def port_forward(cls, d: dict[str, Any]) -> Rule:
         return cls(d["id"], None, d.get("name") or d["id"], bool(d.get("status")), "port_forward", d)
+
+    @classmethod
+    def vpn(cls, d: dict[str, Any]) -> Rule:
+        return cls(d["id"], None, d.get("name") or d["id"], bool(d.get("status")), "vpn", d)
 
 
 @dataclass(slots=True)
@@ -436,6 +463,7 @@ class SiteSnapshot:
     ssids: list[Ssid]
     errors: list[str] = field(default_factory=list)
     port_forwards: list[Rule] = field(default_factory=list)
+    vpns: list[Rule] = field(default_factory=list)
     # Switch port profiles: the built-in "Disable" (type 1) and default "All" (type 0).
     disable_profile_id: str | None = None
     default_profile_id: str | None = None

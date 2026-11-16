@@ -31,3 +31,14 @@ async def test_invalid_mac(hass: HomeAssistant, fake_client, config_entry) -> No
     await _setup(hass, config_entry)
     with pytest.raises(vol.Invalid):
         await hass.services.async_call(DOMAIN, "reconnect_client", {"mac": "not-a-mac"}, blocking=True)
+
+
+async def test_rename_client(hass: HomeAssistant, fake_client, config_entry) -> None:
+    await _setup(hass, config_entry)
+    await hass.services.async_call(
+        DOMAIN, "rename_client", {"mac": "11-22-33-44-55-66", "name": "  Living room TV "}, blocking=True
+    )
+    assert fake_client.calls == [("rename", SITE, "11-22-33-44-55-66", "Living room TV")]
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(DOMAIN, "rename_client", {"mac": "11-22-33-44-55-66", "name": ""},
+                                       blocking=True)

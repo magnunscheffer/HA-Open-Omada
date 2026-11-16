@@ -103,12 +103,32 @@ class FakeClient:
 
     async def get_rule_live(self, site, kind, rule_id):
         rows = {"acl": await self.get_gateway_acls(site), "policy_route": await self.get_policy_routes(site),
-                "port_forward": await self.get_port_forwardings(site)}[kind]
+                "port_forward": await self.get_port_forwardings(site), "vpn": await self.get_vpns(site)}[kind]
         row = next((r for r in rows if r["id"] == rule_id), None)
         return {**row, "description": self.acl_live_description} if row and kind == "acl" else row
 
     async def set_gateway_acl_enabled(self, site, acl, on):
         self.calls.append(("acl", acl.get("description"), on))
+
+    async def get_lan_networks(self, site):
+        return [{"id": "net1", "name": "LAN", "vlan": 1}]
+
+    async def get_gateway_port_stats(self, site, gateway_mac, network):
+        return [{"port": 4, "name": "LAN4", "mode": 1, "status": 1, "speed": 3, "poe": False, "_supportPoe": False},
+                {"port": 5, "name": "LAN5", "mode": 1, "status": 0, "speed": 1, "poe": False, "_supportPoe": False},
+                {"port": 1, "name": "WAN1", "mode": 0, "status": 1}]
+
+    async def get_vpns(self, site):
+        return [{"id": "vpn1", "name": "Office", "status": True}]
+
+    async def set_vpn_enabled(self, site, vpn, on):
+        self.calls.append(("vpn", vpn["id"], on))
+
+    async def set_client_name(self, site, mac, name):
+        self.calls.append(("rename", site, mac, name))
+
+    async def set_wan_internet(self, site, gateway_mac, port, on):
+        self.calls.append(("wan_internet", port, on))
 
     async def get_lan_profiles(self, site):
         if self.fail_profiles:

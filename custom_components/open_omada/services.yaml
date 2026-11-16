@@ -31,3 +31,19 @@ unblock_client:
       example: "AA-BB-CC-DD-EE-FF"
       selector:
         text:
+rename_client:
+  fields:
+    config_entry_id:
+      selector:
+        config_entry:
+          integration: open_omada
+    mac:
+      required: true
+      example: "AA-BB-CC-DD-EE-FF"
+      selector:
+        text:
+    name:
+      required: true
+      example: "Living room TV"
+      selector:
+        text:

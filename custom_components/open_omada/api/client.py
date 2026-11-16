@@ -302,7 +302,7 @@ class OmadaClient:
     async def get_rule_live(self, site_id: str, kind: str, rule_id: str) -> dict | None:
         """Current full object of an ACL / policy route / port forward, read right before a PUT."""
         getter = {"acl": self.get_gateway_acls, "policy_route": self.get_policy_routes,
-                  "port_forward": self.get_port_forwardings}[kind]
+                  "port_forward": self.get_port_forwardings, "vpn": self.get_vpns}[kind]
         return next((r for r in await getter(site_id) if r.get("id") == rule_id), None)
 
     async def get_switch_ports_overview(self, site_id: str) -> list[dict]:
@@ -348,6 +348,26 @@ class OmadaClient:
 
     async def get_policy_routes(self, site_id: str) -> list[dict]:
         return await self.get_paged(self._site(site_id, "/routing/policy-routings"))
+
+    async def get_lan_networks(self, site_id: str) -> list[dict]:
+        return await self.get_paged(self._site(site_id, "/lan-networks"))
+
+    async def get_gateway_port_stats(self, site_id: str, gateway_mac: str, network: dict) -> list[dict]:
+        """Per-port state of the gateway, LAN ports included.
+
+        The Open API only exposes it inside the gateway detail returned by
+        GET /networks/{id}/vlan/{vlan}/ports (any LAN network the gateway serves).
+        """
+        mac = format_mac(gateway_mac)
+        path = self._site(site_id, f"/networks/{network['id']}/vlan/{network.get('vlan', 1)}/ports")
+        for row in await self.get_paged(path):
+            if row.get("type") == "gateway" and format_mac(row.get("mac", "")) == mac:
+                detail = (row.get("gatewayInfo") or {}).get("gatewayDetail") or {}
+                return [{**p, "_supportPoe": bool(detail.get("supportPoe"))} for p in detail.get("portStats") or []]
+        return []
+
+    async def get_vpns(self, site_id: str) -> list[dict]:
+        return await self.get_paged(self._site(site_id, "/vpn"))
 
     async def get_lan_profiles(self, site_id: str) -> list[dict]:
         return await self.get_paged(self._site(site_id, "/lan-profiles"))
@@ -399,6 +419,9 @@ class OmadaClient:
                     if format_mac(c.get("mac", "")) == mac:
                         return sid, c
         return None
+
+    async def set_client_name(self, site_id: str, mac: str, name: str) -> None:
+        await self.request("PATCH", self._site(site_id, f"/clients/{format_mac(mac)}/name"), json={"name": name})
 
     async def reconnect_client(self, site_id: str, mac: str) -> None:
         await self.request("POST", self._site(site_id, f"/clients/{format_mac(mac)}/reconnect"))
@@ -454,6 +477,18 @@ class OmadaClient:
         body = {k: rule[k] for k in PORT_FORWARD_PUT_FIELDS if k in rule}
         body["status"] = on
         await self.request("PUT", self._site(site_id, f"/nat/port-forwardings/{rule['id']}"), json=body)
+
+
+    async def set_vpn_enabled(self, site_id: str, vpn: dict, on: bool) -> None:
+        await self.request("PATCH", self._site(site_id, f"/vpn/{vpn['id']}/status"), json={"status": on})
+
+    async def set_wan_internet(self, site_id: str, gateway_mac: str, port: int, on: bool) -> None:
+        """Connect/disconnect the internet of a WAN port (POST .../internet-state)."""
+        await self.request(
+            "POST",
+            self._site(site_id, f"/gateways/{format_mac(gateway_mac)}/internet-state"),
+            json={"portId": port, "operation": 1 if on else 0},
+        )
 
 
 # Writable fields per the spec request schemas (modifyOsgAcl / modifyPolicyRouting /

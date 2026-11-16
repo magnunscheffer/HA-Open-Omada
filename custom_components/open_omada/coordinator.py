@@ -94,7 +94,7 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
                 devices[node.device.mac] = DeviceRef(site, node)
             for ssid in site.ssids:
                 ssids[(site.site.id, ssid.id)] = (site, ssid)
-            for rule in (*site.acls, *site.policy_routes, *site.port_forwards):
+            for rule in (*site.acls, *site.policy_routes, *site.port_forwards, *site.vpns):
                 rules[(site.site.id, rule.kind, rule.id)] = (site, rule)
             for err in site.errors:
                 LOGGER.debug("Site %s partial error: %s", site.site.name, err)

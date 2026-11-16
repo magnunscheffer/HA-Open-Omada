@@ -22,6 +22,7 @@ from .models import (
     ControllerSnapshot,
     Device,
     Gateway,
+    GatewayLanPort,
     Rule,
     Site,
     SiteSnapshot,
@@ -46,6 +47,16 @@ async def _safe(errors: list[str], label: str, coro):
         _LOGGER.debug("%s failed: %s", label, err)
         errors.append(f"{label}: {err}")
         return None
+
+
+async def _gateway_lan_ports(client: OmadaClient, site_id: str, dev: Device, errors: list[str]) -> list:
+    networks = await _safe(errors, "lan networks", client.get_lan_networks(site_id)) or []
+    if not networks:
+        return []
+    label = f"gateway ports {dev.name}"
+    stats = await _safe(errors, label, client.get_gateway_port_stats(site_id, dev.mac, networks[0]))
+    lan = [p for p in stats or [] if isinstance(p, dict) and p.get("mode") == 1]  # mode 1 = LAN
+    return _parse(errors, label, lan, lambda p: GatewayLanPort.from_api(p, p.get("_supportPoe", False)))
 
 
 def _parse(errors: list[str], label: str, items, fn) -> list:
@@ -108,9 +119,10 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
             )
             wan_ports = [w for w in wan_raw if isinstance(w, dict) and w.get("mode", 0) == 0]
             wans = _parse(errors, f"wan {dev.name}", wan_ports, Wan.from_api)
+            lan_ports = await _gateway_lan_ports(client, sid, dev, errors)
             gateways.append(
                 Gateway(dev, info.get("cpuUtil", dev.cpu), info.get("memUtil", dev.mem),
-                        info.get("temp"), wans, {"info": info, "wan": wan_raw})
+                        info.get("temp"), wans, {"info": info, "wan": wan_raw}, lan_ports)
             )
         elif dev.type == DEVICE_TYPE_SWITCH:
             call = client.get_switch(sid, dev.mac, agile=dev.is_agile_switch)
@@ -131,6 +143,7 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
     acls: list[Rule] = []
     routes: list[Rule] = []
     forwards: list[Rule] = []
+    vpns: list[Rule] = []
     wan_mode: str | None = None
     if has_gateway:
         acls = _parse(errors, "acls", await _safe(errors, "acls", client.get_gateway_acls(sid)), Rule.acl)
@@ -138,13 +151,14 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
                         await _safe(errors, "policy routes", client.get_policy_routes(sid)), Rule.policy_route)
         forwards = _parse(errors, "port forwarding",
                           await _safe(errors, "port forwarding", client.get_port_forwardings(sid)), Rule.port_forward)
+        vpns = _parse(errors, "vpn", await _safe(errors, "vpn", client.get_vpns(sid)), Rule.vpn)
         lb = await _safe(errors, "wan load balance", client.get_wan_load_balance(sid))
         if lb is not None:
             for gw in gateways:
                 wan_mode = apply_wan_roles(gw.wans, lb)
 
     return SiteSnapshot(site, devices, gateways, switches, aps, acls, routes, ssids, errors,
-                        port_forwards=forwards, wan_mode=wan_mode,
+                        port_forwards=forwards, vpns=vpns, wan_mode=wan_mode,
                         disable_profile_id=disable_pid, default_profile_id=default_pid)
 
 

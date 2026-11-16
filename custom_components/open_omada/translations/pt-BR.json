@@ -73,6 +73,15 @@
       },
       "wan_in_use": {
         "name": "{wan} em uso"
+      },
+      "gateway_lan_link": {
+        "name": "{name} link"
+      },
+      "gateway_lan_poe": {
+        "name": "{name} PoE ativo"
+      },
+      "controller_connected": {
+        "name": "Controller conectado"
       }
     },
     "sensor": {
@@ -140,6 +149,12 @@
       },
       "port_forward": {
         "name": "Port forwarding {name}"
+      },
+      "wan_internet_switch": {
+        "name": "{wan} conexão de internet"
+      },
+      "vpn": {
+        "name": "VPN {name}"
       }
     }
   },
@@ -215,6 +230,24 @@
         "mac": {
           "name": "Endereço MAC",
           "description": "MAC do cliente, ex.: AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "rename_client": {
+      "name": "Renomear cliente",
+      "description": "Define o nome de um cliente no Omada.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Controller Omada (só necessário com mais de um)."
+        },
+        "mac": {
+          "name": "Endereço MAC",
+          "description": "MAC do cliente, ex.: AA-BB-CC-DD-EE-FF."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Novo nome do cliente (1–128 caracteres)."
         }
       }
     }

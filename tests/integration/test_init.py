@@ -287,3 +287,37 @@ def test_keep_previous_expires_after_30_minutes() -> None:
     assert kept.clients == [client] and kept.delayed
     off = TopWanClients(False, 600, [])
     assert OmadaCoordinator._keep_previous_if_empty(recent, off) is off  # DPI turned off: show it
+
+
+async def test_gateway_lan_ports_controller_and_vpn(hass: HomeAssistant, fake_client, config_entry) -> None:
+    await _setup(hass, config_entry)
+    assert hass.states.get(_eid(hass, "binary_sensor", f"{GW}_lan4_link")).state == "on"
+    assert hass.states.get(_eid(hass, "binary_sensor", f"{GW}_lan5_link")).state == "off"
+    assert _eid(hass, "binary_sensor", f"{GW}_lan1_link") is None  # WAN-mode port is not a LAN port
+    assert _eid(hass, "binary_sensor", f"{GW}_lan4_poe") is None  # gateway without PoE
+    assert hass.states.get(_eid(hass, "binary_sensor", f"{OID}_controller_connected")).state == "on"
+    vpn = _eid(hass, "switch", f"{GW}_vpn_vpn1")
+    assert hass.states.get(vpn).state == "on"
+    await hass.services.async_call("switch", "turn_off", {"entity_id": vpn}, blocking=True)
+    assert fake_client.calls[-1] == ("vpn", "vpn1", False)
+
+
+async def test_controller_connected_goes_off_when_unreachable(hass: HomeAssistant, fake_client, config_entry) -> None:
+    from custom_components.open_omada.api.exceptions import OmadaConnectionError
+
+    await _setup(hass, config_entry)
+    eid = _eid(hass, "binary_sensor", f"{OID}_controller_connected")
+
+    async def down(site):
+        raise OmadaConnectionError("unreachable")
+
+    fake_client.get_devices = down
+    await config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(eid).state == "off"  # stays available, reports the outage
+
+
+async def test_wan_internet_switch_is_disabled_by_default(hass: HomeAssistant, fake_client, config_entry) -> None:
+    await _setup(hass, config_entry)
+    entry = er.async_get(hass).async_get(_eid(hass, "switch", f"{GW}_wan1_internet_switch"))
+    assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION

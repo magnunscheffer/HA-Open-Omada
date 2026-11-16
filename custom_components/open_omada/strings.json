@@ -73,6 +73,15 @@
       },
       "wan_in_use": {
         "name": "{wan} in use"
+      },
+      "gateway_lan_link": {
+        "name": "{name} link"
+      },
+      "gateway_lan_poe": {
+        "name": "{name} PoE delivery"
+      },
+      "controller_connected": {
+        "name": "Controller connected"
       }
     },
     "sensor": {
@@ -140,6 +149,12 @@
       },
       "port_forward": {
         "name": "Port forwarding {name}"
+      },
+      "wan_internet_switch": {
+        "name": "{wan} internet connection"
+      },
+      "vpn": {
+        "name": "VPN {name}"
       }
     }
   },
@@ -215,6 +230,24 @@
         "mac": {
           "name": "MAC address",
           "description": "Client MAC address, e.g. AA-BB-CC-DD-EE-FF."
+        }
+      }
+    },
+    "rename_client": {
+      "name": "Rename client",
+      "description": "Sets the name of a client in Omada.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Controller",
+          "description": "Omada controller (only needed with more than one)."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "Client MAC address, e.g. AA-BB-CC-DD-EE-FF."
+        },
+        "name": {
+          "name": "Name",
+          "description": "New client name (1–128 characters)."
         }
       }
     }

@@ -74,6 +74,18 @@
         "state": {
           "off": "mdi:lan-disconnect"
         }
+      },
+      "vpn": {
+        "default": "mdi:vpn",
+        "state": {
+          "off": "mdi:shield-off-outline"
+        }
+      },
+      "wan_internet_switch": {
+        "default": "mdi:web",
+        "state": {
+          "off": "mdi:web-off"
+        }
       }
     },
     "binary_sensor": {
@@ -82,6 +94,12 @@
       },
       "port_link": {
         "default": "mdi:ethernet"
+      },
+      "gateway_lan_link": {
+        "default": "mdi:ethernet"
+      },
+      "controller_connected": {
+        "default": "mdi:server-network"
       }
     }
   },
@@ -94,6 +112,9 @@
     },
     "unblock_client": {
       "service": "mdi:account-check"
+    },
+    "rename_client": {
+      "service": "mdi:rename"
     }
   }
 }

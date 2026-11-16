@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api.models import Switch, SwitchPort
+from .api.models import Gateway, Switch, SwitchPort
 from .const import DOMAIN
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
 from .entity import NewEntities, OmadaControllerEntity, OmadaDeviceEntity, OmadaGatewayChild
@@ -41,6 +41,10 @@ async def async_setup_entry(
             new.add(f"{gw}_{kind}_{rule_id}",
                     lambda s=site_id, k=kind, r=rule_id: OmadaRuleSwitch(coordinator, s, k, r))
         for mac, ref in coordinator.devices.items():
+            if isinstance(ref.node, Gateway):
+                for wan in ref.node.wans:
+                    new.add(f"{mac}_wan{wan.port}_internet_switch",
+                            lambda p=wan.port, mac=mac: OmadaWanInternetSwitch(coordinator, mac, p))
             if isinstance(ref.node, Switch):
                 for port in ref.node.ports:
                     if not port.lag_member:
@@ -145,7 +149,7 @@ class OmadaRuleSwitch(OmadaGatewayChild, _OptimisticSwitch):
             if raw is None:
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="item_gone")
             setter = {"acl": "set_gateway_acl_enabled", "port_forward": "set_port_forwarding_enabled",
-                      "policy_route": "set_policy_route_enabled"}[kind]
+                      "policy_route": "set_policy_route_enabled", "vpn": "set_vpn_enabled"}[kind]
             await getattr(client, setter)(site_id, raw, on)
 
         await self._call(write(), on)
@@ -304,3 +308,40 @@ class OmadaPoeSwitch(_PortEntity, _OptimisticSwitch):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._call(self._apply(False), False)
+
+
+class OmadaWanInternetSwitch(OmadaDeviceEntity, _OptimisticSwitch):
+    """Connect/disconnect the internet of a WAN port. Disabled by default: turning off the
+    WAN in use cuts the internet (including remote access to Home Assistant)."""
+
+    _attr_translation_key = "wan_internet_switch"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: OmadaCoordinator, mac: str, port: int) -> None:
+        super().__init__(coordinator, mac, f"wan{port}_internet_switch")
+        self.port = port
+        wan = self._wan
+        self._attr_translation_placeholders = {"wan": wan.name if wan else f"WAN{port}"}
+
+    @property
+    def _wan(self):
+        node = self.ref.node if self.mac in self.coordinator.devices else None
+        if not isinstance(node, Gateway):
+            return None
+        return next((w for w in node.wans if w.port == self.port), None)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.device_online and self._wan is not None
+
+    @property
+    def _actual_on(self) -> bool:
+        wan = self._wan
+        return bool(wan and wan.internet)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._call(self.coordinator.client.set_wan_internet(self.site_id, self.mac, self.port, True), True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._call(self.coordinator.client.set_wan_internet(self.site_id, self.mac, self.port, False), False)
