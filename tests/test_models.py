@@ -115,7 +115,6 @@ async def test_top_wan_clients_ranked_and_dpi_off():
     c = C()
     top = await fetch_top_wan_clients(c, "s", now=10_000)
     assert [x.name for x in top.clients] == ["Laptop", "TV"]  # idle client dropped
-    assert top.clients[1].top_app == "Netflix"
     c.dpi = False
     off = await fetch_top_wan_clients(c, "s")
     assert not off.dpi_enabled and off.clients == []

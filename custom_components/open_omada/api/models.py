@@ -347,7 +347,6 @@ class WanClient:
     name: str
     download_bytes: int
     upload_bytes: int
-    top_app: str | None
 
     @property
     def total_bytes(self) -> int:
@@ -355,13 +354,11 @@ class WanClient:
 
     @classmethod
     def from_api(cls, d: dict[str, Any]) -> WanClient:
-        apps = sorted(d.get("applicationList") or [], key=lambda a: a.get("traffic") or 0, reverse=True)
         return cls(
             mac=d.get("mac", ""),
             name=d.get("clientName") or d.get("mac", ""),
             download_bytes=int(d.get("download") or 0),
             upload_bytes=int(d.get("upload") or 0),
-            top_app=apps[0].get("applicationName") if apps else None,
         )
 
 

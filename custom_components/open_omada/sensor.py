@@ -305,7 +305,7 @@ class OmadaTopWanClientSensor(OmadaDeviceEntity, SensorEntity):
             "window_minutes": top.window_s // 60,
             "top_clients": [
                 {"name": c.name, "mac": c.mac, "download_mb": mb(c.download_bytes),
-                 "upload_mb": mb(c.upload_bytes), "total_mb": mb(c.total_bytes), "top_app": c.top_app}
+                 "upload_mb": mb(c.upload_bytes), "total_mb": mb(c.total_bytes)}
                 for c in top.clients
             ],
         }
