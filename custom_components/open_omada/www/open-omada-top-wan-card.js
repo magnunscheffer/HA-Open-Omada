@@ -48,16 +48,18 @@ function formatMb(mb) {
 function formatRate(mbps) {
   if (mbps >= 1000) return `${(mbps / 1000).toFixed(2)} Gbit/s`;
   if (mbps >= 10) return `${mbps.toFixed(0)} Mbit/s`;
-  return `${mbps.toFixed(1)} Mbit/s`;
+  if (mbps >= 1) return `${mbps.toFixed(1)} Mbit/s`;
+  const kbps = mbps * 1000;
+  return kbps >= 1 ? `${kbps.toFixed(0)} kbit/s` : "<1 kbit/s";
 }
 
 const STYLE = `
   ha-card { padding: 16px; }
-  .header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-            margin-bottom: 12px; }
+  .header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
   .title { font-size: var(--ha-card-header-font-size, 1.25rem); font-weight: 500;
            color: var(--ha-card-header-color, var(--primary-text-color)); }
-  .sub { font-size: 0.8rem; color: var(--secondary-text-color); white-space: nowrap; }
+  .sub { font-size: 0.8rem; color: var(--secondary-text-color); }
+  .sub:empty { display: none; }
   .rows { display: flex; flex-direction: column; gap: 10px; }
   .row { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; align-items: center;
          column-gap: 8px; cursor: default; }
