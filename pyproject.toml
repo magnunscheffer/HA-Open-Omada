@@ -1,6 +1,6 @@
 [project]
 name = "ha-open-omada"
-version = "1.1.0"
+version = "1.2.0"
 description = "Home Assistant integration for TP-Link Omada SDN using the official Open API"
 requires-python = ">=3.14"
 dependencies = ["aiohttp>=3.11"]
