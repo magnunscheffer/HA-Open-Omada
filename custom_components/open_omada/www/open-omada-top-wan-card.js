@@ -15,8 +15,9 @@ const S = {
   title: "Top WAN usage",
   rateSub: (w) => `Average speed, last ${w}`,
   totalSub: (w) => `Download + upload, last ${w}`,
-  rateSubUntil: (w, t) => `Average speed, ${w} until ${t} (DPI data is delayed)`,
-  totalSubUntil: (w, t) => `Download + upload, ${w} until ${t} (DPI data is delayed)`,
+  rateSubUntil: (w, t) => `Average speed, ${w} until ${t}`,
+  totalSubUntil: (w, t) => `Download + upload, ${w} until ${t}`,
+  delayed: " · DPI delayed",
   noRecent: "No DPI data reached the controller in the last hour.",
   dpiOff: "DPI is turned off on the gateway.",
   empty: "No internet traffic in this period.",
@@ -137,10 +138,12 @@ class OpenOmadaTopWanCard extends HTMLElement {
     const minutes = Number(attrs.window_minutes) || 0;
     const mode = this._config.display === "auto" ? (minutes && minutes <= 15 ? "rate" : "total") : this._config.display;
     const asRate = mode === "rate";
-    const until = attrs.delayed && attrs.data_until ? new Date(attrs.data_until) : null;
+    // Always show until when the data is valid; flag it when the DPI batches are late.
+    const until = attrs.data_until ? new Date(attrs.data_until) : null;
     if (minutes && until && !Number.isNaN(until.getTime())) {
       const hhmm = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      sub.textContent = (asRate ? s.rateSubUntil : s.totalSubUntil)(formatWindow(minutes), hhmm);
+      sub.textContent = (asRate ? s.rateSubUntil : s.totalSubUntil)(formatWindow(minutes), hhmm)
+        + (attrs.delayed ? s.delayed : "");
     } else if (minutes) {
       sub.textContent = (asRate ? s.rateSub : s.totalSub)(formatWindow(minutes));
     }

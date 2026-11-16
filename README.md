@@ -114,7 +114,7 @@ enabled.
 DPI statistics reach the controller in batches that can arrive 30+ minutes late (there is no API
 to force them). When the last 10 minutes are not there yet, the 10-minute sensor uses the most
 recent 10 minutes that are (up to 1 h back): attributes `delayed: true` and `data_until`, and the
-card shows "…until HH:MM (DPI data is delayed)".
+card shows "…until HH:MM · DPI delayed".
 
 After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
 Requires DPI enabled on the gateway.
