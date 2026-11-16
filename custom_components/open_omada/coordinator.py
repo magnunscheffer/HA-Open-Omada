@@ -168,12 +168,14 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
             self.save_port_profiles()
 
     async def _refresh_top_wan(self, site_id: str, key: str) -> None:
-        window_s, every_s = TOP_WAN_WINDOWS[key]
+        window_s, every_s, lookback_s = TOP_WAN_WINDOWS[key]
         slot = (site_id, key)
         if time.monotonic() - self._top_wan_at.get(slot, -every_s) < every_s:
             return
         try:
-            self.top_wan[slot] = await fetch_top_wan_clients(self.client, site_id, window_s=window_s)
+            self.top_wan[slot] = await fetch_top_wan_clients(
+                self.client, site_id, window_s=window_s, lookback_s=lookback_s
+            )
         except OmadaAuthError as err:
             raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="auth_failed") from err
         except OmadaError as err:

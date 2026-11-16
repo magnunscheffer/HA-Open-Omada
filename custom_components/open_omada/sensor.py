@@ -20,6 +20,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .api.models import AccessPoint, Gateway, Switch, Wan
 from .const import TOP_WAN_WINDOWS
@@ -307,6 +308,10 @@ class OmadaTopWanClientSensor(OmadaDeviceEntity, SensorEntity):
         return {
             "dpi_enabled": top.dpi_enabled,
             "window_minutes": top.window_s // 60,
+            "data_until": (
+                dt_util.utc_from_timestamp(top.data_until).isoformat() if top.data_until else None
+            ),
+            "delayed": top.delayed,
             "top_clients": [
                 {"name": c.name, "mac": c.mac, "download_mb": mb(c.download_bytes),
                  "upload_mb": mb(c.upload_bytes), "total_mb": mb(c.total_bytes),

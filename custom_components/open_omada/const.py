@@ -14,12 +14,13 @@ CONF_CLIENT_SECRET = "client_secret"
 
 # The controller is easy to overload; one coordinated poll per minute.
 SCAN_INTERVAL = timedelta(seconds=60)
-# DPI "top WAN clients" windows: key -> (window seconds, refresh seconds).
-# The gateway DPI aggregates in ~5-minute buckets; a 10-minute window always holds a
-# complete bucket (a 2-minute window returns nothing), so it is the "recent" view.
-TOP_WAN_WINDOWS: dict[str, tuple[int, int]] = {
-    "10m": (600, 60),
-    "24h": (86400, 300),
+# DPI "top WAN clients" windows: key -> (window s, refresh s, look-back s).
+# The gateway DPI aggregates in ~5-minute buckets (a 2-minute window returns nothing) and the
+# batches can reach the controller ~30+ minutes late; the 10-minute view therefore falls back
+# to the most recent 10 minutes that have data (up to 1 h back). 24 h always ends now.
+TOP_WAN_WINDOWS: dict[str, tuple[int, int, int]] = {
+    "10m": (600, 60, 3600),
+    "24h": (86400, 300, 0),
 }
 
 PLATFORMS: list[Platform] = [

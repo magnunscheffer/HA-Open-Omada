@@ -367,6 +367,10 @@ class TopWanClients:
     dpi_enabled: bool
     window_s: int
     clients: list[WanClient]
+    # End of the window actually used (epoch s). With look-back it can be older than "now"
+    # because the gateway DPI reaches the controller in delayed batches.
+    data_until: int | None = None
+    delayed: bool = False
 
 
 def pick_builtin_profiles(profiles: list[dict[str, Any]]) -> tuple[str | None, str | None]:

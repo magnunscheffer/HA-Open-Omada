@@ -15,6 +15,9 @@ const S = {
   title: "Top WAN usage",
   rateSub: (w) => `Average speed, last ${w}`,
   totalSub: (w) => `Download + upload, last ${w}`,
+  rateSubUntil: (w, t) => `Average speed, ${w} until ${t} (DPI data is delayed)`,
+  totalSubUntil: (w, t) => `Download + upload, ${w} until ${t} (DPI data is delayed)`,
+  noRecent: "No DPI data reached the controller in the last hour.",
   dpiOff: "DPI is turned off on the gateway.",
   empty: "No internet traffic in this period.",
   unavailable: "Entity unavailable.",
@@ -134,13 +137,19 @@ class OpenOmadaTopWanCard extends HTMLElement {
     const minutes = Number(attrs.window_minutes) || 0;
     const mode = this._config.display === "auto" ? (minutes && minutes <= 15 ? "rate" : "total") : this._config.display;
     const asRate = mode === "rate";
-    if (minutes) sub.textContent = (asRate ? s.rateSub : s.totalSub)(formatWindow(minutes));
+    const until = attrs.delayed && attrs.data_until ? new Date(attrs.data_until) : null;
+    if (minutes && until && !Number.isNaN(until.getTime())) {
+      const hhmm = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      sub.textContent = (asRate ? s.rateSubUntil : s.totalSubUntil)(formatWindow(minutes), hhmm);
+    } else if (minutes) {
+      sub.textContent = (asRate ? s.rateSub : s.totalSub)(formatWindow(minutes));
+    }
     if (attrs.dpi_enabled === false) return msg(s.dpiOff);
 
     const clients = (Array.isArray(attrs.top_clients) ? attrs.top_clients : [])
       .filter((c) => c && Number(c.total_mb) > 0)
       .slice(0, Number(this._config.max) || 5);
-    if (!clients.length) return msg(s.empty);
+    if (!clients.length) return msg(attrs.delayed ? s.noRecent : s.empty);
 
     const max = Math.max(...clients.map((c) => Number(c.total_mb)));
     const rows = document.createElement("div");

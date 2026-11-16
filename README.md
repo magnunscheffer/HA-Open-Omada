@@ -111,6 +111,11 @@ Two sensors feed it: **Top WAN client (10 min)** — shown as average speed (Mbi
 buckets, so 10 minutes is the closest to real time; 24 h fills up over the first day after DPI is
 enabled.
 
+DPI statistics reach the controller in batches that can arrive 30+ minutes late (there is no API
+to force them). When the last 10 minutes are not there yet, the 10-minute sensor uses the most
+recent 10 minutes that are (up to 1 h back): attributes `delayed: true` and `data_until`, and the
+card shows "…until HH:MM (DPI data is delayed)".
+
 After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
 Requires DPI enabled on the gateway.
 

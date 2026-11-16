@@ -118,3 +118,38 @@ async def test_top_wan_clients_ranked_and_dpi_off():
     c.dpi = False
     off = await fetch_top_wan_clients(c, "s")
     assert not off.dpi_enabled and off.clients == []
+
+
+async def test_top_wan_lookback_uses_latest_window_with_data():
+    from api.snapshot import fetch_top_wan_clients
+
+    class C:
+        def __init__(self, newest):
+            self.newest = newest  # DPI data exists only for windows ending at or before this
+            self.calls = []
+
+        async def get_dpi_enabled(self, site):
+            return True
+
+        async def get_client_wan_traffic(self, site, start, end):
+            self.calls.append(end)
+            if end > self.newest:
+                return []
+            return [{"mac": "a", "clientName": "RDS", "download": 900, "upload": 100}]
+
+    now = 100_000
+    fresh = await fetch_top_wan_clients(C(newest=now), "s", window_s=600, now=now, lookback_s=3600)
+    assert fresh.clients and fresh.data_until == now and not fresh.delayed
+
+    c = C(newest=now - 35 * 60)  # DPI batch 35 minutes late
+    late = await fetch_top_wan_clients(c, "s", window_s=600, now=now, lookback_s=3600)
+    assert late.delayed and late.data_until == now - 35 * 60 and late.clients[0].name == "RDS"
+    assert len(c.calls) == 8  # now, -5, ..., -35 min
+
+    c = C(newest=now - 2 * 3600)  # nothing in the last hour
+    none = await fetch_top_wan_clients(c, "s", window_s=600, now=now, lookback_s=3600)
+    assert none.clients == [] and none.data_until is None and none.delayed
+    assert len(c.calls) == 13  # bounded: now .. -60 min
+
+    no_lookback = await fetch_top_wan_clients(C(newest=now - 600), "s", window_s=86400, now=now)
+    assert no_lookback.clients == [] and no_lookback.data_until == now and not no_lookback.delayed

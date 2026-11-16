@@ -157,12 +157,32 @@ async def fetch_snapshot(client: OmadaClient, site_ids: list[str] | None = None)
 
 
 async def fetch_top_wan_clients(
-    client: OmadaClient, site_id: str, *, window_s: int = 3600, limit: int = 5, now: int | None = None
+    client: OmadaClient,
+    site_id: str,
+    *,
+    window_s: int = 3600,
+    limit: int = 5,
+    now: int | None = None,
+    lookback_s: int = 0,
+    step_s: int = 300,
 ) -> TopWanClients:
-    """Top internet consumers over the last ``window_s`` seconds (needs gateway DPI)."""
+    """Top internet consumers over a ``window_s`` window (needs gateway DPI).
+
+    The window normally ends now. The controller receives DPI statistics in batches that can
+    arrive tens of minutes late, so with ``lookback_s`` an empty window is moved back in
+    ``step_s`` steps (up to ``lookback_s``) to the most recent one that has data.
+    """
     if not await client.get_dpi_enabled(site_id):
         return TopWanClients(False, window_s, [])
-    end = int(now if now is not None else time.time())
-    rows = await client.get_client_wan_traffic(site_id, end - window_s, end)
-    ranked = sorted((WanClient.from_api(r) for r in rows), key=lambda c: c.total_bytes, reverse=True)
-    return TopWanClients(True, window_s, [c for c in ranked if c.total_bytes > 0][:limit])
+    now_s = int(now if now is not None else time.time())
+    offset = 0
+    while True:
+        end = now_s - offset
+        rows = await client.get_client_wan_traffic(site_id, end - window_s, end)
+        ranked = sorted((WanClient.from_api(r) for r in rows), key=lambda c: c.total_bytes, reverse=True)
+        clients = [c for c in ranked if c.total_bytes > 0][:limit]
+        if clients or offset + step_s > lookback_s:
+            if not clients and lookback_s:
+                return TopWanClients(True, window_s, [], None, offset > 0)
+            return TopWanClients(True, window_s, clients, end, offset > 0)
+        offset += step_s
