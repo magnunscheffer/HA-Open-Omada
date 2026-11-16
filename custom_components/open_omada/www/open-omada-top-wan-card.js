@@ -13,10 +13,10 @@ const NOT_RENDERED = Symbol("not-rendered");
 // All card texts are English on purpose (project convention).
 const S = {
   title: "Top WAN usage",
-  rateSub: (w) => `Average speed, last ${w}`,
-  totalSub: (w) => `Download + upload, last ${w}`,
-  rateSubUntil: (w, t) => `Average speed, last ${w} · updated ${t}`,
-  totalSubUntil: (w, t) => `Download + upload, last ${w} · updated ${t}`,
+  rateSub: (w) => `Average speed, ${w}`,
+  totalSub: (w) => `Download + upload, ${w}`,
+  rateSubUntil: (w, t) => `Average speed, ${w} - updated ${t}`,
+  totalSubUntil: (w, t) => `Download + upload, ${w} - updated ${t}`,
   delayed: " · DPI delayed",
   noRecent: "No DPI data reached the controller in the last hour.",
   dpiOff: "DPI is turned off on the gateway.",
@@ -39,8 +39,8 @@ function entityTitle(hass, entityId, state) {
 }
 
 function formatWindow(minutes) {
-  if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60} h`;
-  return `${minutes} min`;
+  if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60}h`;
+  return `${minutes}m`;
 }
 
 function formatMb(mb) {
