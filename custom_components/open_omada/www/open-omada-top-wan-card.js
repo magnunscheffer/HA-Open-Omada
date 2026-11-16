@@ -18,7 +18,7 @@ const S = {
   rateSubUntil: (w, t) => `Average speed, ${w} - updated ${t}`,
   totalSubUntil: (w, t) => `Download + upload, ${w} - updated ${t}`,
   delayed: " · DPI delayed",
-  noRecent: "No DPI data reached the controller in the last hour.",
+  noRecent: "No DPI data reached the controller in the last 30 minutes.",
   dpiOff: "DPI is turned off on the gateway.",
   empty: "No internet traffic in this period.",
   unavailable: "Entity unavailable.",

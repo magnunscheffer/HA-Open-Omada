@@ -253,3 +253,37 @@ async def test_optimistic_state_survives_a_refresh_started_before_the_action(
     coord.async_update_listeners()
     await hass.async_block_till_done()
     assert hass.states.get(eid).state == "off"
+
+
+async def test_top_wan_keeps_previous_result_when_dpi_batch_is_late(
+    hass: HomeAssistant, fake_client, config_entry
+) -> None:
+    await _setup(hass, config_entry)
+    coord = config_entry.runtime_data
+    eid = _eid(hass, "sensor", f"{GW}_top_wan_10m")
+    first = hass.states.get(eid)
+    assert first.state == "Laptop" and first.attributes["delayed"] is False
+    fake_client.dpi_empty = True  # the next batch has not reached the controller yet
+    coord._top_wan_at.clear()  # force the per-window refresh now
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+    kept = hass.states.get(eid)
+    assert kept.state == "Laptop" and kept.attributes["delayed"] is True
+    assert kept.attributes["data_until"] == first.attributes["data_until"]  # "updated" stays old
+
+
+def test_keep_previous_expires_after_30_minutes() -> None:
+    import time as _time
+
+    from custom_components.open_omada.api.models import TopWanClients, WanClient
+    from custom_components.open_omada.coordinator import OmadaCoordinator
+
+    client = WanClient("a", "RDS", 10, 1)
+    old = TopWanClients(True, 600, [client], int(_time.time()) - 1801)
+    empty = TopWanClients(True, 600, [], int(_time.time()))
+    assert OmadaCoordinator._keep_previous_if_empty(old, empty) is empty
+    recent = TopWanClients(True, 600, [client], int(_time.time()) - 600)
+    kept = OmadaCoordinator._keep_previous_if_empty(recent, empty)
+    assert kept.clients == [client] and kept.delayed
+    off = TopWanClients(False, 600, [])
+    assert OmadaCoordinator._keep_previous_if_empty(recent, off) is off  # DPI turned off: show it

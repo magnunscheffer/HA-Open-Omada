@@ -67,9 +67,10 @@ de ~5 minutos, então 10 minutos é o mais próximo de tempo real; as 24 h se co
 após ligar o DPI.
 
 As estatísticas do DPI chegam ao controller em lotes que podem atrasar mais de 30 minutos (não há
-API para forçar o envio). Quando os últimos 10 minutos ainda não chegaram, o sensor usa os 10
-minutos mais recentes disponíveis (até 1 h atrás): atributos `delayed: true` e `data_until`, e o
-card mostra "10m - updated HH:MM · DPI delayed".
+API para forçar o envio). Quando uma coleta vem vazia, os sensores mantêm o último resultado
+(atributo `delayed: true`; `data_until` = horário desses dados) e o card mostra
+"10m - updated HH:MM · DPI delayed". Depois de 30 minutos sem dados novos, o card avisa. As duas
+janelas são consultadas a cada minuto.
 
 Depois de atualizar a integração, recarregue a página do navegador (Ctrl/⌘ + Shift + R). Exige DPI
 ligado no gateway.

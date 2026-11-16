@@ -32,6 +32,7 @@ class FakeClient:
         self.port1_override = False
         self.acl_live_description = "Deny-DMZ"
         self.fail_profiles = False
+        self.dpi_empty = False
         self.fail_dpi_auth = False
         self.hide_ap = False
         self.port2_status = 1
@@ -158,6 +159,8 @@ class FakeClient:
         return True
 
     async def get_client_wan_traffic(self, site, start, end):
+        if self.dpi_empty:
+            return []
         return [{"mac": "CC", "clientName": "Laptop", "download": 3_000_000, "upload": 500_000}]
 
     async def get_wlan_groups(self, site):

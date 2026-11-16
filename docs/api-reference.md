@@ -53,8 +53,9 @@ Prefixo: `/openapi/v1/{omadacId}/sites/{siteId}`. MAC no formato `AA-BB-CC-DD-EE
 | Consumo por cliente (DPI) | `GET …/dashboard/clientTraffic?start&end&page&pageSize` | exige DPI ligado (`GET …/applicationControl/status` → `dpi`); vazio com DPI desligado |
 
 > DPI: blocos de ~5 min; os lotes chegam ao controller **com atraso variável (observado ~35 min)**.
-> Não há endpoint para forçar o envio (só `DELETE /stat/dpi`, que apaga). A integração recua em
-> passos de 5 min (até 1 h) para a janela de 10 min mais recente com dados.
+> Não há endpoint para forçar o envio (só `DELETE /stat/dpi`, que apaga). Coleta vazia → a
+> integração mantém o último resultado com dados (marcado `delayed`) por até 30 min; só no início
+> (sem resultado anterior) recua em passos de 5 min, até 30 min.
 
 > `GET …/clients` (`activity`/`uploadActivity`) conta **todo** o tráfego do cliente, inclusive LAN
 > (câmera → NVR). Não serve como "consumo de WAN".

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import time
 from dataclasses import dataclass
 
@@ -15,7 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import OmadaAuthError, OmadaClient, OmadaError
 from .api.models import AccessPoint, ControllerSnapshot, Gateway, Rule, SiteSnapshot, Ssid, Switch, TopWanClients
 from .api.snapshot import fetch_snapshot, fetch_top_wan_clients
-from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TOP_WAN_WINDOWS
+from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TOP_WAN_KEEP, TOP_WAN_WINDOWS
 
 type OmadaConfigEntry = ConfigEntry[OmadaCoordinator]
 
@@ -172,16 +173,30 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         slot = (site_id, key)
         if time.monotonic() - self._top_wan_at.get(slot, -every_s) < every_s:
             return
+        prev = self.top_wan.get(slot)
         try:
-            self.top_wan[slot] = await fetch_top_wan_clients(
-                self.client, site_id, window_s=window_s, lookback_s=lookback_s
+            # Look back only on a cold start; afterwards keep the previous result instead.
+            result = await fetch_top_wan_clients(
+                self.client, site_id, window_s=window_s, lookback_s=0 if prev else lookback_s
             )
+            self.top_wan[slot] = self._keep_previous_if_empty(prev, result)
         except OmadaAuthError as err:
             raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="auth_failed") from err
         except OmadaError as err:
             LOGGER.debug("Top WAN clients (%s) unavailable for site %s: %s", key, site_id, err)
             self.top_wan.pop(slot, None)
         self._top_wan_at[slot] = time.monotonic()
+
+    @staticmethod
+    def _keep_previous_if_empty(prev: TopWanClients | None, result: TopWanClients) -> TopWanClients:
+        """DPI batches reach the controller late: an empty window usually means "not counted
+        yet", not "no traffic". Keep the last result with data (marked delayed) for up to
+        TOP_WAN_KEEP seconds; its data_until shows how old it is."""
+        if not result.dpi_enabled or result.clients or not prev or not prev.clients or not prev.data_until:
+            return result
+        if time.time() - prev.data_until > TOP_WAN_KEEP:
+            return result
+        return dataclasses.replace(prev, delayed=True)
 
     def _remove_stale_devices(self, gone: set[str]) -> None:
         """Remove devices that disappeared from the controller (forgotten/moved)."""

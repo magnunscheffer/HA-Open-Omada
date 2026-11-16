@@ -112,9 +112,10 @@ buckets, so 10 minutes is the closest to real time; 24 h fills up over the first
 enabled.
 
 DPI statistics reach the controller in batches that can arrive 30+ minutes late (there is no API
-to force them). When the last 10 minutes are not there yet, the 10-minute sensor uses the most
-recent 10 minutes that are (up to 1 h back): attributes `delayed: true` and `data_until`, and the
-card shows "10m - updated HH:MM · DPI delayed".
+to force them). When a refresh comes back empty, the sensors keep their last result (attribute
+`delayed: true`; `data_until` = time of that data) and the card shows
+"10m - updated HH:MM · DPI delayed". After 30 minutes without new data the card says so.
+Both windows refresh every minute.
 
 After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
 Requires DPI enabled on the gateway.
