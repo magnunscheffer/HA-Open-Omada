@@ -125,7 +125,8 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     controller_sensor = OmadaControllerSitesSensor(coordinator)
-    known: set[str] = {controller_sensor.unique_id}
+    known = coordinator.new_known_set()
+    known.add(controller_sensor.unique_id)
     coordinator.provided_unique_ids |= known
     async_add_entities([controller_sensor])
 

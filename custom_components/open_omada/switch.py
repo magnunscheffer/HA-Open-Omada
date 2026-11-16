@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    known: set[str] = set()
+    known = coordinator.new_known_set()
 
     @callback
     def _add_new() -> None:
@@ -216,6 +216,7 @@ class OmadaPortSwitch(_PortEntity, _OptimisticSwitch):
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key="no_disable_profile")
             if port.profile_id and port.profile_id != site.disable_profile_id:
                 self.coordinator.port_profiles[self._key] = port.profile_id
+                self.coordinator.save_port_profiles()
             await client.set_switch_port_profile(
                 self.site_id, self.mac, self.port, site.disable_profile_id,
                 port_name=port.name, profile_override=port.profile_override,

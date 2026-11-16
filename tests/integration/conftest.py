@@ -29,6 +29,9 @@ class FakeClient:
         self.port1_profile = "p-trunk"
         self.port1_tags = 0
         self.port1_poe = 1
+        self.fail_profiles = False
+        self.fail_dpi_auth = False
+        self.hide_ap = False
         self.port2_status = 1
         self.controller_info: dict = {}
 
@@ -51,7 +54,7 @@ class FakeClient:
             {**base, "mac": GW, "name": "fw1", "type": "gateway", "model": "ER605 v2.0"},
             {**base, "mac": SW, "name": "sw1", "type": "switch", "subtype": "smart", "model": "SG2218P"},
             {**base, "mac": AP, "name": "ap1", "type": "ap", "model": "EAP670"},
-        ]
+        ][: 2 if self.hide_ap else 3]
 
     async def get_gateway(self, site, mac):
         return {"cpuUtil": 11, "memUtil": 38}
@@ -81,6 +84,9 @@ class FakeClient:
         self.calls.append(("follow_profile", port, profile_id))
 
     async def get_lan_profiles(self, site):
+        if self.fail_profiles:
+            from custom_components.open_omada.api.exceptions import OmadaApiError
+            raise OmadaApiError(-1, "boom", "/lan-profiles")
         return [{"id": "p-all", "name": "All", "type": 0}, {"id": "p-dis", "name": "Disable", "type": 1},
                 {"id": "p-trunk", "name": "Trunk", "type": 2}]
 
@@ -121,6 +127,8 @@ class FakeClient:
         return {"linkBackup": False}
 
     async def get_dpi_enabled(self, site):
+        if self.fail_dpi_auth:
+            raise OmadaAuthError("dpi auth")
         return True
 
     async def get_client_wan_traffic(self, site, start, end):

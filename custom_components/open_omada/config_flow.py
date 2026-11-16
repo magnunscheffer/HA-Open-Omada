@@ -4,28 +4,50 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlparse
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_URL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 
 from .api import OmadaAuthError, OmadaConnectionError, OmadaError
 from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER
 
 PLACEHOLDERS = {"example_url": "https://omada.local:8043"}
 
+_SECRET = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+_URL = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
+
 USER_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_URL): str,
+        vol.Required(CONF_URL): _URL,
         vol.Required(CONF_CLIENT_ID): str,
-        vol.Required(CONF_CLIENT_SECRET): str,
-        vol.Required(CONF_VERIFY_SSL, default=False): bool,
+        vol.Required(CONF_CLIENT_SECRET): _SECRET,
+        vol.Required(CONF_VERIFY_SSL, default=True): bool,
     }
 )
-REAUTH_SCHEMA = vol.Schema(
-    {vol.Required(CONF_CLIENT_ID): str, vol.Required(CONF_CLIENT_SECRET): str}
+# Reconfigure never sends the stored secret back to the browser; empty = keep it.
+RECONFIGURE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_URL): _URL,
+        vol.Required(CONF_CLIENT_ID): str,
+        vol.Optional(CONF_CLIENT_SECRET): _SECRET,
+        vol.Required(CONF_VERIFY_SSL, default=True): bool,
+    }
 )
+REAUTH_SCHEMA = vol.Schema({vol.Required(CONF_CLIENT_ID): str, vol.Required(CONF_CLIENT_SECRET): _SECRET})
+
+
+def _normalize_url(data: dict[str, Any]) -> str | None:
+    """Strip a trailing slash; return an error key unless the URL is https://host."""
+    url = str(data[CONF_URL]).strip().rstrip("/")
+    data[CONF_URL] = url
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return "https_required"
+    return None
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -57,8 +79,9 @@ class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
-        if user_input is not None:
-            user_input[CONF_URL] = user_input[CONF_URL].rstrip("/")
+        if user_input is not None and (bad := _normalize_url(user_input)):
+            errors = {CONF_URL: bad}
+        elif user_input is not None:
             info, errors = await self._try(user_input)
             if info is not None:
                 await self.async_set_unique_id(info["omadacId"])
@@ -102,15 +125,21 @@ class OmadaConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         entry = self._get_reconfigure_entry()
         if user_input is not None:
-            user_input[CONF_URL] = user_input[CONF_URL].rstrip("/")
-            info, errors = await self._try(user_input)
-            if info is not None:
-                await self.async_set_unique_id(info["omadacId"])
-                self._abort_if_unique_id_mismatch(reason="wrong_controller")
-                return self.async_update_reload_and_abort(entry, data=user_input)
+            data = {**user_input}
+            if not data.get(CONF_CLIENT_SECRET):
+                data[CONF_CLIENT_SECRET] = entry.data[CONF_CLIENT_SECRET]
+            if bad := _normalize_url(data):
+                errors = {CONF_URL: bad}
+            else:
+                info, errors = await self._try(data)
+                if info is not None:
+                    await self.async_set_unique_id(info["omadacId"])
+                    self._abort_if_unique_id_mismatch(reason="wrong_controller")
+                    return self.async_update_reload_and_abort(entry, data=data)
+        shown = {k: v for k, v in (user_input or entry.data).items() if k != CONF_CLIENT_SECRET}
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=self.add_suggested_values_to_schema(USER_SCHEMA, user_input or entry.data),
+            data_schema=self.add_suggested_values_to_schema(RECONFIGURE_SCHEMA, shown),
             errors=errors,
             description_placeholders=PLACEHOLDERS,
         )

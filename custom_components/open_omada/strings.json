@@ -14,7 +14,7 @@
           "url": "Controller address, e.g. {example_url}",
           "client_id": "From the Open API application in the Omada controller.",
           "client_secret": "From the Open API application in the Omada controller.",
-          "verify_ssl": "Disable for controllers with a self-signed certificate."
+          "verify_ssl": "Turn off only for controllers with a self-signed certificate."
         }
       },
       "reauth_confirm": {
@@ -34,14 +34,17 @@
           "verify_ssl": "Verify SSL certificate"
         },
         "data_description": {
-          "url": "Controller address, e.g. {example_url}"
+          "url": "Controller address, e.g. {example_url}",
+          "verify_ssl": "Turn off only for controllers with a self-signed certificate.",
+          "client_secret": "Leave empty to keep the current secret."
         }
       }
     },
     "error": {
       "cannot_connect": "Cannot connect to the controller.",
       "invalid_auth": "Invalid client ID or secret.",
-      "unknown": "Unexpected error, see the logs."
+      "unknown": "Unexpected error, see the logs.",
+      "https_required": "Use an https:// address (the client secret must not travel unencrypted)."
     },
     "abort": {
       "already_configured": "This controller is already configured.",

@@ -120,6 +120,7 @@ class OmadaClient:
                     headers=headers,
                     ssl=self._ssl,
                     timeout=self._timeout,
+                    allow_redirects=False,
                 ) as resp:
                     # Never use raise_for_status()/repr(err): aiohttp includes the
                     # request headers (our access token) in those messages.
@@ -127,9 +128,18 @@ class OmadaClient:
                         raise OmadaAuthError(f"HTTP {resp.status} on {method} {path}")
                     if resp.status >= 400:
                         raise OmadaApiError(resp.status, f"HTTP {resp.status} {resp.reason}", f"{method} {path}")
-                    return await resp.json(content_type=None)
+                    try:
+                        body = await resp.json(content_type=None)
+                    except ValueError:
+                        raise OmadaApiError(resp.status, "response is not JSON", f"{method} {path}") from None
+        except aiohttp.ClientResponseError as err:
+            # str(err) would include the request URL, whose query may carry the refresh token.
+            raise OmadaConnectionError(f"{method} {path}: {type(err).__name__} {err.status}") from None
         except (TimeoutError, aiohttp.ClientError) as err:
             raise OmadaConnectionError(f"{method} {path}: {type(err).__name__}: {err}") from None
+        if not isinstance(body, dict):
+            raise OmadaApiError(-1, "unexpected response body", f"{method} {path}")
+        return body
 
     @staticmethod
     def _check(body: dict[str, Any], path: str) -> Any:
@@ -152,7 +162,9 @@ class OmadaClient:
         self._omadac_id = self._omadac_id or info.get("omadacId")
         return info
 
-    async def _store_token(self, result: dict[str, Any]) -> None:
+    async def _store_token(self, result: Any) -> None:
+        if not isinstance(result, dict) or not result.get("accessToken"):
+            raise OmadaAuthError("token endpoint returned no access token")
         self._access_token = result["accessToken"]
         self._refresh_token = result.get("refreshToken")
         self._expires_at = time.monotonic() + int(result.get("expiresIn", 7200))
@@ -191,10 +203,14 @@ class OmadaClient:
         except (OmadaAuthError, OmadaApiError):
             await self.authenticate()
 
-    async def _ensure_token(self, force: bool = False) -> None:
+    async def _ensure_token(self, force: bool = False, rejected: str | None = None) -> None:
+        """Make sure a valid token exists. ``rejected`` = token the controller just refused:
+        if another request already replaced it, do not refresh again."""
         async with self._auth_lock:
             if self._access_token is None:
                 await self.authenticate()
+            elif force and rejected is not None and rejected != self._access_token:
+                return
             elif force or time.monotonic() > self._expires_at - TOKEN_SAFETY_MARGIN:
                 await self._refresh()
 
@@ -212,9 +228,10 @@ class OmadaClient:
                 await self.get_controller_info()
             path = path.replace("{omadacId}", self.omadac_id)
         await self._ensure_token()
+        used = self._access_token
         body = await self._raw(method, path, params=params, json=json)
         if body.get("errorCode") in _REAUTH_CODES:
-            await self._ensure_token(force=True)
+            await self._ensure_token(force=True, rejected=used)
             body = await self._raw(method, path, params=params, json=json)
         return self._check(body, path)
 

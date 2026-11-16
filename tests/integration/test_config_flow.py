@@ -42,3 +42,21 @@ async def test_reauth(hass: HomeAssistant, fake_client, config_entry) -> None:
     await hass.async_block_till_done()  # entry reloads after reauth
     assert result["reason"] == "reauth_successful"
     assert config_entry.data["client_secret"] == "new"
+
+
+async def test_http_url_rejected(hass: HomeAssistant, fake_client) -> None:
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ENTRY_DATA, "url": "http://omada.test:8088"})
+    assert result["errors"] == {"url": "https_required"}
+
+
+async def test_reconfigure_keeps_secret_when_empty(hass: HomeAssistant, fake_client, config_entry) -> None:
+    result = await config_entry.start_reconfigure_flow(hass)
+    schema_keys = {str(k): k for k in result["data_schema"].schema}
+    assert "suggested_value" not in (schema_keys["client_secret"].description or {})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"url": ENTRY_DATA["url"], "client_id": "cid", "verify_ssl": False})
+    await hass.async_block_till_done()
+    assert result["reason"] == "reconfigure_successful"
+    assert config_entry.data["client_secret"] == "sec"

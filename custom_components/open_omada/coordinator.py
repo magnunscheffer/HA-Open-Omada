@@ -45,6 +45,12 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
         self.controller_device_id: str | None = None
         # unique_ids the platforms currently provide (filled by each platform).
         self.provided_unique_ids: set[str] = set()
+        # Each platform's "already added" unique_ids; cleared for a device when it is removed so
+        # its entities are recreated if the device comes back.
+        self._known_sets: list[set[str]] = []
+        # Last seen built-in port profile ids per site: (disable, default). Used when a poll could
+        # not read /lan-profiles, so a "Disable" profile is never remembered as a port's profile.
+        self._builtin_profiles: dict[str, tuple[str | None, str | None]] = {}
         self.devices: dict[str, DeviceRef] = {}
         self.ssids: dict[tuple[str, str], tuple[SiteSnapshot, Ssid]] = {}
         self.rules: dict[tuple[str, str, str], tuple[SiteSnapshot, Rule]] = {}
@@ -94,10 +100,44 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
             if site.gateways:
                 await self._refresh_top_wan(site.site.id)
 
+        self._apply_builtin_profiles(snap)
         self._remember_port_profiles(snap)
         self._remove_stale_devices(set(self.devices) - set(devices))
         self.devices, self.ssids, self.rules = devices, ssids, rules
         return snap
+
+    def new_known_set(self) -> set[str]:
+        known: set[str] = set()
+        self._known_sets.append(known)
+        return known
+
+    def _forget_device_entities(self, mac: str) -> None:
+        prefix = f"{mac}_"
+        for known in (*self._known_sets, self.provided_unique_ids):
+            known.difference_update({uid for uid in known if uid.startswith(prefix)})
+
+    def save_port_profiles(self) -> None:
+        self._profile_store.async_delay_save(lambda: self.port_profiles, 10)
+
+    async def async_flush_stores(self) -> None:
+        """Write pending store data now (on unload), so nothing is written after removal."""
+        await self._profile_store.async_save(self.port_profiles)
+        await self._poe_store.async_save(sorted(self.poe_override_ports))
+
+    def _apply_builtin_profiles(self, snap: ControllerSnapshot) -> None:
+        for site in snap.sites:
+            sid = site.site.id
+            if site.disable_profile_id:
+                self._builtin_profiles[sid] = (site.disable_profile_id, site.default_profile_id)
+                continue
+            cached = self._builtin_profiles.get(sid)
+            if not cached:
+                continue
+            site.disable_profile_id, site.default_profile_id = cached
+            for sw in site.switches:
+                for port in sw.ports:
+                    if port.profile_id == site.disable_profile_id:
+                        port.enabled = False
 
     async def async_load_port_profiles(self) -> None:
         self.port_profiles = await self._profile_store.async_load() or {}
@@ -108,24 +148,28 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
 
     def _remember_port_profiles(self, snap: ControllerSnapshot) -> None:
         changed = False
+        disable_ids = {d for d, _ in self._builtin_profiles.values() if d}
         for site in snap.sites:
+            if not site.disable_profile_id:
+                continue  # profiles unknown this poll: do not risk remembering "Disable"
             for sw in site.switches:
                 for port in sw.ports:
-                    if port.profile_id and port.profile_id != site.disable_profile_id:
+                    if port.profile_id and port.profile_id != site.disable_profile_id \
+                            and port.profile_id not in disable_ids:
                         key = f"{sw.device.mac}_{port.port}"
                         if self.port_profiles.get(key) != port.profile_id:
                             self.port_profiles[key] = port.profile_id
                             changed = True
         if changed:
-            self._profile_store.async_delay_save(lambda: self.port_profiles, 10)
+            self.save_port_profiles()
 
     async def _refresh_top_wan(self, site_id: str) -> None:
         if time.monotonic() - self._top_wan_at.get(site_id, -TOP_WAN_INTERVAL) < TOP_WAN_INTERVAL:
             return
         try:
             self.top_wan[site_id] = await fetch_top_wan_clients(self.client, site_id)
-        except OmadaAuthError:
-            raise
+        except OmadaAuthError as err:
+            raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="auth_failed") from err
         except OmadaError as err:
             LOGGER.debug("Top WAN clients unavailable for site %s: %s", site_id, err)
             self.top_wan.pop(site_id, None)
@@ -141,3 +185,4 @@ class OmadaCoordinator(DataUpdateCoordinator[ControllerSnapshot]):
             if device:
                 LOGGER.info("Removing Omada device %s no longer on the controller", mac)
                 registry.async_remove_device(device.id)
+            self._forget_device_entities(mac)

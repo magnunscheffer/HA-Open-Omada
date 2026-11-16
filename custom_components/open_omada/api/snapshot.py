@@ -48,18 +48,29 @@ async def _safe(errors: list[str], label: str, coro):
         return None
 
 
+def _parse(errors: list[str], label: str, items, fn) -> list:
+    """Convert API items one by one; a malformed item is skipped and recorded, not fatal."""
+    out = []
+    for item in items or []:
+        try:
+            out.append(fn(item))
+        except (KeyError, TypeError, ValueError, AttributeError) as err:
+            errors.append(f"{label}: skipped malformed item ({type(err).__name__}: {err})")
+    return out
+
+
 async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
     sid = site.id
     errors: list[str] = []
 
-    devices = [Device.from_api(d) for d in await client.get_devices(sid)]
+    devices = _parse(errors, "devices", await client.get_devices(sid), Device.from_api)
 
     # --- SSIDs (site level, grouped by WLAN group) -------------------------
     ssids: list[Ssid] = []
     for wlan in await _safe(errors, "wlan groups", client.get_wlan_groups(sid)) or []:
         wid = wlan.get("wlanId") or wlan.get("id")
-        for s in await _safe(errors, f"ssids {wid}", client.get_ssids(sid, wid)) or []:
-            ssids.append(Ssid.from_api(s, wid))
+        raw_ssids = await _safe(errors, f"ssids {wid}", client.get_ssids(sid, wid))
+        ssids.extend(_parse(errors, f"ssids {wid}", raw_ssids, lambda s, wid=wid: Ssid.from_api(s, wid)))
 
     poe_rows: dict[str, dict[int, dict]] = {}
     overview_rows: dict[str, dict[int, dict]] = {}
@@ -69,9 +80,11 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
         disable_pid, default_pid = pick_builtin_profiles(profiles)
     if any(d.type == DEVICE_TYPE_SWITCH and d.online for d in devices):
         for row in await _safe(errors, "switch poe info", client.get_switch_ports_poe(sid)) or []:
-            poe_rows.setdefault(row["switchMac"], {})[row["port"]] = row
+            if isinstance(row, dict) and row.get("switchMac") and row.get("port") is not None:
+                poe_rows.setdefault(row["switchMac"], {})[row["port"]] = row
         for row in await _safe(errors, "switch ports overview", client.get_switch_ports_overview(sid)) or []:
-            overview_rows.setdefault(row["switchMac"], {})[row["port"]] = row
+            if isinstance(row, dict) and row.get("switchMac") and row.get("port") is not None:
+                overview_rows.setdefault(row["switchMac"], {})[row["port"]] = row
 
     gateways: list[Gateway] = []
     switches: list[Switch] = []
@@ -93,7 +106,8 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
             wan_raw = (
                 await _safe(errors, f"wan {dev.name}", client.get_gateway_wan_status(sid, dev.mac)) or []
             )
-            wans = [Wan.from_api(w) for w in wan_raw if w.get("mode", 0) == 0]
+            wan_ports = [w for w in wan_raw if isinstance(w, dict) and w.get("mode", 0) == 0]
+            wans = _parse(errors, f"wan {dev.name}", wan_ports, Wan.from_api)
             gateways.append(
                 Gateway(dev, info.get("cpuUtil", dev.cpu), info.get("memUtil", dev.mem),
                         info.get("temp"), wans, {"info": info, "wan": wan_raw})
@@ -119,11 +133,11 @@ async def fetch_site(client: OmadaClient, site: Site) -> SiteSnapshot:
     forwards: list[Rule] = []
     wan_mode: str | None = None
     if has_gateway:
-        acls = [Rule.acl(a) for a in await _safe(errors, "acls", client.get_gateway_acls(sid)) or []]
-        routes = [Rule.policy_route(r) for r in
-                  await _safe(errors, "policy routes", client.get_policy_routes(sid)) or []]
-        forwards = [Rule.port_forward(r) for r in
-                    await _safe(errors, "port forwarding", client.get_port_forwardings(sid)) or []]
+        acls = _parse(errors, "acls", await _safe(errors, "acls", client.get_gateway_acls(sid)), Rule.acl)
+        routes = _parse(errors, "policy routes",
+                        await _safe(errors, "policy routes", client.get_policy_routes(sid)), Rule.policy_route)
+        forwards = _parse(errors, "port forwarding",
+                          await _safe(errors, "port forwarding", client.get_port_forwardings(sid)), Rule.port_forward)
         lb = await _safe(errors, "wan load balance", client.get_wan_load_balance(sid))
         if lb is not None:
             for gw in gateways:

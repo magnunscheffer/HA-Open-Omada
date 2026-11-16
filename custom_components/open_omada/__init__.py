@@ -96,7 +96,10 @@ def _remove_stale_entities(hass: HomeAssistant, entry: OmadaConfigEntry, coordin
 
 async def async_unload_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await entry.runtime_data.async_flush_stores()
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: OmadaConfigEntry) -> None:

@@ -146,3 +146,36 @@ async def test_poe_refused_on_custom_vlan_ports(hass: HomeAssistant, fake_client
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call("switch", "turn_off", {"entity_id": eid}, blocking=True)
     assert not [c for c in fake_client.calls if c[0] in ("poe_override", "poe")]
+
+
+async def test_disable_profile_never_remembered_when_profiles_unreadable(
+    hass: HomeAssistant, fake_client, config_entry
+) -> None:
+    await _setup(hass, config_entry)
+    coord = config_entry.runtime_data
+    assert coord.port_profiles[f"{SW}_1"] == "p-trunk"
+    fake_client.port1_profile = "p-dis"  # disabled in the Omada UI...
+    fake_client.fail_profiles = True  # ...and /lan-profiles fails this poll
+    await coord.async_refresh()
+    assert coord.port_profiles[f"{SW}_1"] == "p-trunk"
+    assert hass.states.get(_eid(hass, "switch", f"{SW}_port1_enabled")).state == "off"
+
+
+async def test_readopted_device_gets_entities_back(hass: HomeAssistant, fake_client, config_entry) -> None:
+    await _setup(hass, config_entry)
+    coord = config_entry.runtime_data
+    fake_client.hide_ap = True
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+    assert _eid(hass, "button", f"{AP}_reboot") is None
+    fake_client.hide_ap = False
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+    assert _eid(hass, "button", f"{AP}_reboot") is not None
+
+
+async def test_dpi_auth_error_starts_reauth(hass: HomeAssistant, fake_client, config_entry) -> None:
+    fake_client.fail_dpi_auth = True
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert any(f["context"]["source"] == "reauth" for f in hass.config_entries.flow.async_progress())

@@ -15,6 +15,8 @@ TO_REDACT = {
     CONF_CLIENT_ID, CONF_CLIENT_SECRET, "omadacId", "omadac_id", "mac", "sn", "serial",
     "ip", "publicIp", "sitePublicIp", "ipv6", "ipv6List", "wanPortIpv4Config",
     "wanPortIpv6Config", "gateway", "priDns", "sndDns", "uplinkDeviceMac", "longitude", "latitude",
+    "url", "forwardIp", "wanIps", "limitedAddresses", "ip2", "gateway2", "priDns2", "sndDns2",
+    "serial_number", "dhcp",
 }
 
 

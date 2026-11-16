@@ -221,9 +221,11 @@ class Switch:
         """
         stat = stat or {}
         supports_poe = bool(stat.get("supportPoe"))
-        stat_ports = {p["port"]: p for p in stat.get("ports") or []}
+        stat_ports = {p["port"]: p for p in stat.get("ports") or [] if isinstance(p, dict) and "port" in p}
         ports: list[SwitchPort] = []
         for p in info.get("portList") or []:
+            if not isinstance(p, dict) or p.get("port") is None:
+                continue
             s = stat_ports.get(p["port"], {})
             ps = s.get("portStatus") or {}
             link_up = None if not ps else ps.get("linkStatus") == 1
@@ -393,12 +395,15 @@ def apply_wan_roles(wans: list[Wan], lb: dict[str, Any] | None) -> str:
     WAN ids look like ``"<port>_<uuid>"``. Returns the mode: "failover" or "load_balance".
     """
     lb = lb or {}
-    port_of = lambda wan_id: int(str(wan_id).split("_", 1)[0])  # noqa: E731
+    def port_of(wan_id: Any) -> int | None:
+        head = str(wan_id).split("_", 1)[0]
+        return int(head) if head.isdigit() else None
+
     if not lb.get("linkBackup"):
         for w in wans:
             w.role, w.in_use = "load_balance", w.internet
         return "load_balance"
-    primaries = {port_of(i) for i in lb.get("primaryWans") or []}
+    primaries = {p for i in lb.get("primaryWans") or [] if (p := port_of(i)) is not None}
     backup = port_of(lb["backupWan"]) if lb.get("backupWan") else None
     prim = [w for w in wans if w.port in primaries]
     # mode 0: backup takes over when ANY primary fails; 1: when ALL fail; other: schedule.
