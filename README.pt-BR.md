@@ -88,6 +88,10 @@ ligado no gateway.
 
 ## Problemas
 
+- **Card mostra "Custom element doesn't exist" ou a lista de cards fica girando:** a página foi
+  aberta antes do HA terminar de iniciar a integração (logo após um reinício) ou o navegador ficou
+  com uma cópia antiga. Recarregue a página (Ctrl/⌘ + Shift + R).
+
 Baixe os **diagnósticos** na página da integração (segredos, MACs e IPs mascarados) e ative o log
 `custom_components.open_omada: debug`.
 

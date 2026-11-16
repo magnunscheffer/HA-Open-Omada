@@ -152,6 +152,10 @@ One coordinated poll every **60 s** (requests are serialised to protect the cont
 
 ## Troubleshooting
 
+- **Card shows "Custom element doesn't exist" or the card picker keeps spinning:** the page was
+  loaded before Home Assistant finished starting the integration (e.g. right after a restart), or
+  the browser kept an old copy. Reload the page (Ctrl/⌘ + Shift + R).
+
 - Download **diagnostics** from the integration page (secrets, MACs and IPs are redacted).
 - Debug logging:
   ```yaml
