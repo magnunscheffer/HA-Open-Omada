@@ -18,12 +18,13 @@ Community integration for **TP-Link Omada SDN** that uses the controller's **off
 | Gateway ACLs, policy routes, port forwarding on/off | ✅ | — |
 | SSIDs on/off | ✅ | — |
 | Switch port on/off (same as the Omada UI) | ✅ | — |
-| PoE on/off and live PoE power | ✅ | ✅ |
 | Active WAN (failover), WAN throughput/latency/loss | ✅ | link/online only |
-| Top WAN clients (gateway DPI) | ✅ | — |
-| Client reconnect / block / unblock / rename | ✅ | reconnect, rename |
+| Top WAN clients (gateway DPI) + bundled dashboard card | ✅ | — |
 | Reboot any device | ✅ | — |
+| Client reconnect / block / unblock / rename | ✅ | reconnect, rename |
+| PoE on/off and live PoE power | ✅ | ✅ |
 | VPN on/off, WAN internet on/off, gateway LAN ports | ✅ | ✅ |
+| Device status, CPU, memory, controller status | ✅ | ✅ |
 | Wi-Fi presence (device tracker), firmware updates | — | ✅ |
 
 ## Requirements
