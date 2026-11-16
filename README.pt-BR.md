@@ -122,10 +122,73 @@ religar uma WAN PPPoE pode levar 30+ s e trocar o IP público).
   Ative o *Profile Override* dessas portas na console e a integração passa a só ligar/desligar PoE.
 - ACLs, policy routes e port forwarding: a regra inteira é reenviada mudando só o `status`.
 
+### Enhanced WAN Control (opcional)
+
+Mede a qualidade de **cada** WAN com sondas definidas por você e pode inverter WAN primária e
+backup quando o link em uso piora. Ative em **Configurações → Dispositivos e serviços → Open Omada
+→ Configurar**. Exige gateway com duas WANs em modo **failover** (link backup).
+
+**Como as sondas são fixadas em cada WAN.** A integração cria e mantém estes objetos no Omada, todos
+com nome `Open Omada probe <id> …`:
+
+- um grupo de IP com o endereço do Home Assistant;
+- um grupo de IP por WAN com os IPs das sondas daquela WAN;
+- uma policy route por WAN (Home Assistant → sondas daquela WAN → aquela WAN, sem fallback),
+  mantida no **topo** da lista.
+
+Só o tráfego do Home Assistant para os IPs das sondas é afetado. As rotas das sondas não aparecem
+como switches. Desativar o recurso, ou remover a integração, apaga esses objetos.
+
+**Medição** (mesmas regras do script original). Cada sonda é um handshake TCP + TLS na porta 443,
+e a duração dele é a latência.
+
+- **Offline:** nenhuma sonda responde.
+- **Poor:** menos da maioria responde, ou a latência mediana passa do limite.
+- **Good:** qualquer outro caso.
+
+Um resultado ruim é confirmado com testes extras antes de contar.
+
+**Failover** (select *Auto WAN failover*):
+
+- `off`: só mede.
+- `notify` (padrão): dispara o evento `open_omada_wan_failover` com `dry_run: true` e não muda nada.
+- `automatic`: inverte primária e backup quando a WAN em uso está Poor ou Offline e a outra está
+  Good.
+
+A volta para a *Preferred WAN* só acontece depois que ela fica Good pelo tempo de failback **sem
+interrupção**: qualquer resultado diferente de Good zera a contagem. Um intervalo mínimo entre
+trocas evita oscilação.
+
+| Opção | Padrão |
+|---|---|
+| Sondas da WAN 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
+| Sondas da WAN 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
+| Poor acima da latência mediana | 150 ms |
+| Medir a cada | 30 s |
+| Testes extras para confirmar / intervalo entre eles | 2 / 5 s |
+| Minutos mínimos entre trocas | 15 |
+| Voltar à WAN preferida depois de boa por | 60 min |
+
+Entidades no gateway:
+
+- por WAN: *Quality* (com atributos por sonda), *Probe latency*, *Probe jitter*, *Probes OK*;
+- status *WAN failover* (`ok`, `failed_over`, `cooldown`, `monitoring`, `error`);
+- selects *Auto WAN failover*, *Preferred WAN* e *Primary WAN*. *Primary WAN* troca os papéis na
+  hora.
+
+O evento `open_omada_wan_failover` traz `from`, `to`, `reason` e `dry_run`. Use-o numa automação
+para receber notificação.
+
+> **Não use como sonda os servidores DNS configurados numa WAN.** O gateway roteia por conta própria
+> o tráfego para os DNS das WANs, ignorando as policy routes. Uma sonda nesse IP não pode ser
+> fixada: ela é ignorada e listada no atributo `skipped_probes` do sensor *Quality*. Exemplo:
+> `1.1.1.1` como DNS do PPPoE da WAN1 saía pela WAN2.
+
 ## Limitações conhecidas
 
 - A Open API **não informa o IP público de cada WAN**; atrás de modem/CGNAT só há o IP privado.
 - **Maior consumo de WAN** exige **DPI** ligado no gateway (Network Security → Application Control).
+- O **Enhanced WAN Control** trata duas WANs em failover (não balanceamento nem 3+ WANs).
 - Não baixe a documentação da API do próprio controller (`/v3/api-docs`): pode travá-lo.
 
 ## Problemas

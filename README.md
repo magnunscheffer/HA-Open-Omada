@@ -19,6 +19,7 @@ Community integration for **TP-Link Omada SDN** that uses the controller's **off
 | SSIDs on/off | ✅ | — |
 | Switch port on/off (same as the Omada UI) | ✅ | — |
 | Active WAN (failover), WAN throughput/latency/loss | ✅ | link/online only |
+| Per-WAN quality probes and automatic WAN failover/failback | ✅ | — |
 | Top WAN clients (gateway DPI) + bundled dashboard card | ✅ | — |
 | Reboot any device | ✅ | — |
 | Client reconnect / block / unblock / rename | ✅ | reconnect, rename |
@@ -206,10 +207,75 @@ interval.
 - ACLs, policy routes and port forwarding are updated by sending the full rule back with only
   `status` changed (the API has no status-only endpoint).
 
+### Enhanced WAN Control (optional)
+
+Measures the quality of **each** WAN with your own probe targets and can swap the primary and
+backup WAN when the link in use goes bad. Turn it on in **Settings → Devices & services → Open
+Omada → Configure**. It needs a gateway with two WANs in **failover** (link backup) mode.
+
+**How probes are pinned to a WAN.** The integration creates and maintains these Omada objects,
+all named `Open Omada probe <id> …`:
+
+- an IP group with the Home Assistant host address;
+- one IP group per WAN with that WAN's probe IPs;
+- one policy route per WAN: Home Assistant → that WAN's probes → that WAN, with no fallback,
+  kept at the **top** of the policy route list.
+
+Only traffic from Home Assistant to the probe IPs is affected. The probe routes are not shown as
+switches. Turning the feature off, or removing the integration, deletes these objects.
+
+**Measurement** (same rules as the original script). Each probe is a TCP + TLS handshake on port
+443, and its duration is the latency.
+
+- **Offline:** no probe answers.
+- **Poor:** fewer than a majority answer, or the median latency is above the threshold.
+- **Good:** anything else.
+
+A bad result is confirmed with extra tests before it counts.
+
+**Failover** (select *Auto WAN failover*):
+
+- `off`: measure only.
+- `notify` (default): fires the `open_omada_wan_failover` event with `dry_run: true`, and changes
+  nothing.
+- `automatic`: swaps the primary and backup WAN when the WAN in use is Poor or Offline and the
+  other one is Good.
+
+It returns to the *Preferred WAN* only after that WAN has been Good for the failback time
+**in a row**: any non-Good result restarts the count. A minimum time between switches avoids
+flapping.
+
+| Option | Default |
+|---|---|
+| Probes for WAN port 1 | `9.9.9.9, nic.br, ec2.sa-east-1.amazonaws.com` |
+| Probes for WAN port 2 | `149.112.112.112, iaas.sa-saopaulo-1.oraclecloud.com, 8.8.4.4` |
+| Poor above median latency | 150 ms |
+| Measure every | 30 s |
+| Extra tests to confirm a bad result / seconds between them | 2 / 5 s |
+| Minimum minutes between switches | 15 |
+| Return to the preferred WAN after it is good for | 60 min |
+
+Entities on the gateway:
+
+- per WAN: *Quality* (with per-probe attributes), *Probe latency*, *Probe jitter*, *Probes OK*;
+- *WAN failover* status (`ok`, `failed_over`, `cooldown`, `monitoring`, `error`);
+- selects *Auto WAN failover*, *Preferred WAN* and *Primary WAN*. *Primary WAN* swaps the roles
+  right away.
+
+The `open_omada_wan_failover` event carries `from`, `to`, `reason` and `dry_run`. Use it in an
+automation to get a notification.
+
+> **Do not use a WAN's DNS servers as probes.** The gateway routes traffic to the DNS servers set
+> on its WANs itself, ignoring policy routes. A probe on such an IP cannot be pinned. It is
+> skipped and listed in the `skipped_probes` attribute of the *Quality* sensor. For example,
+> `1.1.1.1` as the PPPoE DNS of WAN1 left through WAN2.
+
 ## Data updates
 
 One coordinated poll every **60 s** (requests are serialised to protect the controller). The DPI
-"top WAN client" query refreshes every 5 minutes over a 1-hour window.
+"Top WAN client" sensors (10 min and 24 h windows) also refresh every 60 s; when the controller has
+no new DPI batch yet, the previous result is kept for up to 30 min (`delayed`). Enhanced WAN
+Control measures on its own interval (30 s by default).
 
 ## Known limitations
 
@@ -217,6 +283,7 @@ One coordinated poll every **60 s** (requests are serialised to protect the cont
   CGNAT) only that address is available.
 - **Top WAN clients** need **DPI** enabled on the gateway (Omada → Network Security → Application
   Control). Per-client traffic without DPI includes LAN traffic, so it is not used.
+- **Enhanced WAN Control** handles two WANs in failover mode (not load balancing or 3+ WANs).
 - PoE "powering" status depends on what the controller reports for each switch model.
 - Do not download the API docs from the controller itself (`/v3/api-docs`): generating them can
   hang the controller. Use TP-Link's published copy.

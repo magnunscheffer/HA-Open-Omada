@@ -300,7 +300,7 @@
     "step": {
       "init": {
         "title": "Enhanced WAN Control",
-        "description": "Probes are pinned to each WAN with Omada policy routes created and kept by the integration (only this Home Assistant host to the probe IPs). Each WAN needs its own targets (host names or IPv4, comma separated).",
+        "description": "Probes are pinned to each WAN with Omada policy routes created and kept by the integration (only this Home Assistant host to the probe IPs). Each WAN needs its own targets (host names or IPv4, comma separated). Do not use the DNS servers set on a WAN as probes: the gateway routes them itself, so they cannot be pinned and are skipped.",
         "data": {
           "wan_control": "Enable Enhanced WAN Control",
           "probes_wan1": "Probes for WAN port 1",

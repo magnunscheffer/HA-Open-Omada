@@ -108,3 +108,17 @@ trazem apenas o IP visto pelo controller local. Quando a WAN recebe IP global
 | Internet da WAN on/off via `POST …/gateways/{mac}/internet-state` `{portId: <nº da porta>, operation: 0\|1}` | ✅ WAN1 (PPPoE). Desligar é imediato; **religar só responde depois que o PPPoE reconecta (>30 s)** → timeout de 120 s. O PPPoE pode receber **outro IP público** |
 | Portas LAN do gateway (leitura) | `GET …/networks/{id}/vlan/{vlan}/ports` → `data[type=gateway].gatewayInfo.gatewayDetail.portStats` (`mode` 1 = LAN, `status` = link, `poe`); `GET …/gateways/{mac}/ports` não traz link |
 | Cliente: reconnect / block / unblock via `POST …/clients/{mac}/{acao}` | ✅ iPhone: reconectou (uptime 0), bloqueado (`insight/clients` → `block: true`), desbloqueado e voltou em ~10 s |
+| Failover: trocar WAN primária ↔ backup via `PUT …/internet/load-balance` (objeto do `GET` com `primaryWans`/`backupWan` invertidos) | ✅ WAN1 virou primária; tráfego comum migrou em ~20 s; restaurado idêntico (`appOptRouting`, `backupMode`, `weights` preservados) |
+| Enhanced WAN Control: grupos de IP `POST/PATCH/DELETE …/profiles/groups[/0/{id}]`, policy routes `POST/PUT/DELETE …/routing/policy-routings`, ordem `POST …/routing/policy-routings/modifyIndex` `{indexes: {id: n}}` | ✅ criados, rotas das sondas no topo; traceroute confirmou cada sonda saindo pela sua WAN, inclusive na WAN backup |
+
+## Enhanced WAN Control — observações
+
+- Rota das sondas: `protocols: [256]` (todos), `interfaceType: 0` (WAN), `interfaceId` = id da WAN
+  (`"<porta>_<uuid>"`), `backupInterface: false`, origem/destino do tipo 1 (grupo de IP).
+- **O gateway (ER605 v2) roteia os servidores DNS configurados nas WANs por conta própria,
+  ignorando policy routes.** `1.1.1.1` (DNS primário do PPPoE da WAN1) saía pela WAN2 mesmo com a
+  rota fixada. Os DNS das WANs vêm de `GET …/internet` →
+  `wanPortSettings[].wanPortIpv4Setting.<ipv4Pppoe|ipv4Dhcp|ipv4Static>.primaryDns/secondaryDns`;
+  a integração ignora sondas nesses IPs.
+- Hosts com DNS rotativo (ex.: `ec2.sa-east-1.amazonaws.com`) são resolvidos na sincronização (a
+  cada 1 h) e o grupo de IP é atualizado.

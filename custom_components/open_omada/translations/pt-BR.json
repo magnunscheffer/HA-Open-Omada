@@ -300,7 +300,7 @@
     "step": {
       "init": {
         "title": "Enhanced WAN Control",
-        "description": "As sondas são fixadas em cada WAN por policy routes do Omada criadas e mantidas pela integração (só deste Home Assistant para os IPs das sondas). Cada WAN precisa de alvos próprios (nomes ou IPv4, separados por vírgula).",
+        "description": "As sondas são fixadas em cada WAN por policy routes do Omada criadas e mantidas pela integração (só deste Home Assistant para os IPs das sondas). Cada WAN precisa de alvos próprios (nomes ou IPv4, separados por vírgula). Não use como sonda os servidores DNS configurados numa WAN: o gateway os roteia por conta própria, então não podem ser fixados e são ignorados.",
         "data": {
           "wan_control": "Ativar Enhanced WAN Control",
           "probes_wan1": "Sondas da porta WAN 1",
