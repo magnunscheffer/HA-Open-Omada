@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from homeassistant.const import CONF_URL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -13,7 +15,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .api import OmadaAuthError, OmadaClient, OmadaError
-from .const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER, PLATFORMS
+from .const import CARD_FILE, CARD_URL, CONF_CLIENT_ID, CONF_CLIENT_SECRET, DOMAIN, LOGGER, PLATFORMS
 from .coordinator import OmadaConfigEntry, OmadaCoordinator
 from .entity import controller_device_info
 from .services import async_setup_services
@@ -22,9 +24,25 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register integration-wide actions."""
+    """Register integration-wide actions and the bundled dashboard card."""
     async_setup_services(hass)
+    await _async_register_card(hass)
     return True
+
+
+async def _async_register_card(hass: HomeAssistant) -> None:
+    """Serve www/open-omada-top-wan-card.js and load it in every dashboard (no manual resource)."""
+    if hass.http is None or "frontend" not in hass.config.components:
+        return  # e.g. headless tests
+    from homeassistant.components.frontend import add_extra_js_url
+    from homeassistant.components.http import StaticPathConfig
+    from homeassistant.loader import async_get_integration
+
+    version = (await async_get_integration(hass, DOMAIN)).version
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(Path(__file__).parent / "www" / CARD_FILE), True)]
+    )
+    add_extra_js_url(hass, f"{CARD_URL}?v={version}")
 
 
 def build_client(hass: HomeAssistant, data: dict) -> OmadaClient:

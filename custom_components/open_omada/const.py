@@ -23,3 +23,7 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+# Bundled dashboard card (served by the integration, loaded in every dashboard).
+CARD_FILE = "open-omada-top-wan-card.js"
+CARD_URL = f"/{DOMAIN}/{CARD_FILE}"

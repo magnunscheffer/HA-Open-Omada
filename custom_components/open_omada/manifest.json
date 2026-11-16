@@ -1,6 +1,10 @@
 {
   "domain": "open_omada",
   "name": "Open Omada",
+  "after_dependencies": [
+    "frontend",
+    "http"
+  ],
   "codeowners": [
     "@magnunscheffer"
   ],
@@ -11,5 +15,5 @@
   "issue_tracker": "https://github.com/magnunscheffer/HA-Open-Omada/issues",
   "loggers": [],
   "requirements": [],
-  "version": "0.2.0b2"
+  "version": "0.2.0b3"
 }
