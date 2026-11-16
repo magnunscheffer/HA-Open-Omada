@@ -3,7 +3,7 @@
 Integração da comunidade para **TP-Link Omada SDN** usando a **Open API oficial** do controller
 (`/openapi/…`, client credentials), e não a Web API interna.
 
-> **Beta.** Sem vínculo com a TP-Link. Omada é marca registrada da TP-Link.
+> Projeto da comunidade, sem vínculo com a TP-Link. Omada é marca registrada da TP-Link.
 > English: [README.md](README.md)
 
 ## Requisitos
@@ -21,8 +21,8 @@ Integração da comunidade para **TP-Link Omada SDN** usando a **Open API oficia
 ## Instalação
 
 **HACS (repositório customizado):** HACS → ⋮ → **Custom repositories** →
-`https://github.com/magnunscheffer/HA-Open-Omada`, categoria **Integration**. Ative *Show beta
-versions* para ver as pré-versões. Instale **Open Omada** e reinicie o HA.
+`https://github.com/magnunscheffer/HA-Open-Omada`, categoria **Integration**. Instale **Open Omada**,
+reinicie o HA e recarregue a página do navegador.
 
 **Manual:** copie `custom_components/open_omada` para `config/custom_components/` e reinicie.
 
@@ -50,6 +50,8 @@ Omada Controller (serviço)   total de devices · um switch por SSID (atributo: 
 A integração já traz um card próprio (sem instalar nada a mais, sem registrar recurso). Ele mostra
 os clientes que mais usam internet, em barras, a partir do DPI do gateway.
 
+<img src="https://raw.githubusercontent.com/magnunscheffer/HA-Open-Omada/main/docs/images/top-wan-cards.png" alt="Cards Top WAN: últimos 10 minutos (velocidade) e últimas 24 horas (total)" width="720">
+
 1. Edite um painel → **Adicionar card** → busque **Open Omada** → **Open Omada · Top WAN**.
 2. O sensor "Top WAN client" já vem selecionado; ajuste o título ou a quantidade (1–5) se quiser.
    Passe o mouse numa linha para ver download/upload.
@@ -66,6 +68,36 @@ após ligar o DPI.
 
 Depois de atualizar a integração, recarregue a página do navegador (Ctrl/⌘ + Shift + R). Exige DPI
 ligado no gateway.
+
+### Exemplo: links de WAN com cards nativos
+
+Os sensores de cada WAN funcionam com os cards do próprio HA. Gráfico de histórico com download e
+upload de cada link (unidades diferentes ganham eixos Y próprios):
+
+<img src="https://raw.githubusercontent.com/magnunscheffer/HA-Open-Omada/main/docs/images/wan-throughput.png" alt="Gráfico de download e upload por link de WAN" width="390">
+
+Troque `gateway` pelo prefixo das entidades do seu gateway (as WANs seguem o nome da porta, ex.:
+`WAN1` → `wan1`, `WAN/LAN2` → `wan_lan2`).
+
+```yaml
+type: history-graph
+title: WAN throughput
+hours_to_show: 1
+entities:
+  - entity: sensor.gateway_wan1_download
+    name: WAN1 ↓
+  - entity: sensor.gateway_wan1_upload
+    name: WAN1 ↑
+  - entity: sensor.gateway_wan_lan2_download
+    name: WAN2 ↓
+  - entity: sensor.gateway_wan_lan2_upload
+    name: WAN2 ↑
+```
+
+Latência e status dos links: veja os exemplos `WAN latency` e `WAN status` no [README em inglês](README.md#example-wan-links-with-native-cards).
+
+O controller atualiza as taxas das WANs cerca de uma vez por minuto, o mesmo intervalo de leitura
+da integração.
 
 **Ações:** `open_omada.reconnect_client`, `open_omada.block_client`, `open_omada.unblock_client`
 (campo `mac`).

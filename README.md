@@ -7,7 +7,7 @@
 Community integration for **TP-Link Omada SDN** that uses the controller's **official Open API**
 (`/openapi/…`, client credentials) instead of the internal web API.
 
-> **Beta.** Not affiliated with or endorsed by TP-Link. Omada is a trademark of TP-Link.
+> Community project, not affiliated with or endorsed by TP-Link. Omada is a trademark of TP-Link.
 > Leia em português: [README.pt-BR.md](README.pt-BR.md)
 
 ## Why another Omada integration?
@@ -49,12 +49,11 @@ The button above does steps 1–3 for you. Manually:
 2. In Home Assistant open **HACS** → ⋮ (top right) → **Custom repositories**.
 3. Repository: `https://github.com/magnunscheffer/HA-Open-Omada` — Type: **Integration** → **Add**.
 4. Search HACS for **Open Omada** and open it.
-5. While the integration is in beta: ⋮ → **Redownload**, enable **Show beta versions** and pick
-   the latest `v0.2.0bN` (only needed until a stable release exists).
-6. Click **Download**, then **restart Home Assistant** (Settings → System → Restart).
-7. Add the integration (next section).
+5. Click **Download**, then **restart Home Assistant** (Settings → System → Restart).
+6. Reload the browser page and add the integration (next section).
 
-**Updating:** HACS shows an update when a new release is published; download it and restart.
+**Updating:** HACS shows an update when a new release is published; download it, restart Home
+Assistant and reload the browser page.
 
 ### Manual
 
@@ -93,6 +92,8 @@ Omada Controller (service)   devices count · one switch per SSID (attribute: ac
 The integration ships its own card (no extra install, no manual resource). It shows the clients
 using the most internet traffic as a bar ranking, read from the gateway DPI.
 
+<img src="https://raw.githubusercontent.com/magnunscheffer/HA-Open-Omada/main/docs/images/top-wan-cards.png" alt="Top WAN cards: last 10 minutes (speed) and last 24 hours (total)" width="720">
+
 1. Edit a dashboard → **Add card** → search **Open Omada** → **Open Omada · Top WAN**.
 2. The "Top WAN client" sensor is preselected; optionally change the title or the number of
    clients (1–5). Hover a row to see download/upload.
@@ -112,6 +113,63 @@ enabled.
 
 After updating the integration, reload the browser page (Ctrl/⌘ + Shift + R) to get the new card.
 Requires DPI enabled on the gateway.
+
+### Example: WAN links with native cards
+
+The per-WAN sensors work with Home Assistant's own cards. A history graph with the download/upload
+of every link (sensors with different units get their own Y axis):
+
+<img src="https://raw.githubusercontent.com/magnunscheffer/HA-Open-Omada/main/docs/images/wan-throughput.png" alt="History graph of download and upload per WAN link" width="390">
+
+Replace `gateway` with the prefix of your gateway's entities (WAN entities follow the port names,
+e.g. `WAN1` → `wan1`, `WAN/LAN2` → `wan_lan2`).
+
+```yaml
+type: history-graph
+title: WAN throughput
+hours_to_show: 1
+entities:
+  - entity: sensor.gateway_wan1_download
+    name: WAN1 ↓
+  - entity: sensor.gateway_wan1_upload
+    name: WAN1 ↑
+  - entity: sensor.gateway_wan_lan2_download
+    name: WAN2 ↓
+  - entity: sensor.gateway_wan_lan2_upload
+    name: WAN2 ↑
+```
+
+Latency and status of the links:
+
+```yaml
+type: history-graph
+title: WAN latency
+hours_to_show: 6
+entities:
+  - entity: sensor.gateway_wan1_latency
+    name: WAN1
+  - entity: sensor.gateway_wan_lan2_latency
+    name: WAN2
+```
+
+```yaml
+type: glance
+title: WAN status
+entities:
+  - entity: sensor.gateway_active_wan
+    name: Active
+  - entity: binary_sensor.gateway_wan1_internet
+    name: WAN1
+  - entity: binary_sensor.gateway_wan_lan2_internet
+    name: WAN2
+  - entity: binary_sensor.gateway_wan1_in_use
+    name: WAN1 in use
+  - entity: binary_sensor.gateway_wan_lan2_in_use
+    name: WAN2 in use
+```
+
+The controller refreshes WAN rates about once a minute, which is also the integration's polling
+interval.
 
 ### Actions
 
