@@ -216,6 +216,19 @@ backup WAN when the link in use goes bad. Turn it on in **Settings → Devices &
 Omada → Configure**. It needs a gateway with two WANs in **failover** (link backup) mode, and was tested with a single
 gateway in a single site (see [Known limitations](#known-limitations)).
 
+**Recommended Omada settings** (*Internet → Load Balancing*):
+
+| Setting | Recommended | Why |
+|---|---|---|
+| Link Backup | **Enable** | Required: one primary and one backup WAN |
+| Recover Mode | **Always Link Primary** | After a hard failure handled by the gateway, traffic returns to the primary. With *Link Backup* it stays on the backup, and the integration cannot move it back |
+| Failover Mode | **Any primary WAN fails** (*all* is the same with one primary) | Do not use *Timing*: the integration cannot tell which WAN is in use |
+| Online Detection | **On, on both WANs** | The gateway fails over by itself when a WAN loses the internet, and the integration reads it to know which WAN is in use |
+
+The gateway handles hard failures. The integration also handles bad quality (latency, loss)
+and changes which WAN is primary. When the gateway has already moved the traffic, the integration
+does nothing and shows `failed_over`.
+
 **How probes are pinned to a WAN.** The integration creates and maintains these Omada objects,
 all named `Open Omada probe <id> …`:
 

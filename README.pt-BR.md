@@ -131,6 +131,19 @@ backup quando o link em uso piora. Ative em **Configurações → Dispositivos e
 → Configurar**. Exige gateway com duas WANs em modo **failover** (link backup) e foi testado com um único gateway
 num único site (veja [Limitações conhecidas](#limitações-conhecidas)).
 
+**Configuração recomendada no Omada** (*Internet → Load Balancing*):
+
+| Configuração | Recomendado | Por quê |
+|---|---|---|
+| Link Backup | **Enable** | Obrigatório: uma WAN primária e uma backup |
+| Recover Mode | **Always Link Primary** | Depois de uma queda tratada pelo próprio gateway, o tráfego volta para a primária. Com *Link Backup* ele fica na backup, e a integração não consegue trazê-lo de volta |
+| Failover Mode | **Any primary WAN fails** (*all* dá no mesmo com uma primária só) | Não use *Timing*: a integração não consegue saber qual WAN está em uso |
+| Online Detection | **Ligada nas duas WANs** | O gateway troca sozinho quando uma WAN perde a internet, e a integração usa isso para saber qual WAN está em uso |
+
+O gateway cuida das quedas de vez. A integração também pega internet ruim (latência, perda) e muda
+qual WAN é a primária. Se o gateway já desviou o tráfego, a integração não faz nada e mostra
+`failed_over`.
+
 **Como as sondas são fixadas em cada WAN.** A integração cria e mantém estes objetos no Omada, todos
 com nome `Open Omada probe <id> …`:
 
