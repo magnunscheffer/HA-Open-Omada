@@ -209,6 +209,8 @@ interval.
 
 ### Enhanced WAN Control (optional)
 
+📘 **Full guide:** [docs/enhanced-wan-control.md](docs/enhanced-wan-control.md). It covers how it works, choosing probes, automations, testing and troubleshooting.
+
 Measures the quality of **each** WAN with your own probe targets and can swap the primary and
 backup WAN when the link in use goes bad. Turn it on in **Settings → Devices & services → Open
 Omada → Configure**. It needs a gateway with two WANs in **failover** (link backup) mode, and was tested with a single

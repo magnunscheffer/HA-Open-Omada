@@ -124,6 +124,8 @@ religar uma WAN PPPoE pode levar 30+ s e trocar o IP público).
 
 ### Enhanced WAN Control (opcional)
 
+📘 **Guia completo (em inglês):** [docs/enhanced-wan-control.md](docs/enhanced-wan-control.md). Explica como funciona, como escolher as sondas, automações, testes e solução de problemas.
+
 Mede a qualidade de **cada** WAN com sondas definidas por você e pode inverter WAN primária e
 backup quando o link em uso piora. Ative em **Configurações → Dispositivos e serviços → Open Omada
 → Configurar**. Exige gateway com duas WANs em modo **failover** (link backup) e foi testado com um único gateway
