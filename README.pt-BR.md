@@ -227,6 +227,14 @@ para receber notificação.
   mais tempo que o navegador. Limpe o cache e depois feche e abra o app:
   - **iPhone/iPad:** *Configurações → Companion App → Debug → Clear web view cache*;
   - **Android:** *Configurações → Companion App → Troubleshooting → Reset frontend cache*.
+- **Tablets Amazon Fire** (app ou navegador Silk) continuam mostrando *Custom element doesn't
+  exist* mesmo depois de limpar o cache. Adicione o card como recurso do dashboard uma vez:
+  1. *Configurações → Painéis → ⋮ → Recursos → Adicionar recurso*. Se *Recursos* não aparecer,
+     ative o *Modo avançado* no seu perfil de usuário.
+  2. URL `/open_omada/open-omada-top-wan-card.js`, tipo **Módulo JavaScript**.
+  3. Recarregue o dashboard no tablet.
+
+  O recurso não atrapalha nos outros aparelhos.
 
 Baixe os **diagnósticos** na página da integração (segredos, MACs e IPs mascarados) e ative o log
 `custom_components.open_omada: debug`.

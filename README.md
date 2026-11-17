@@ -323,6 +323,14 @@ Control measures on its own interval (30 s by default).
   browser. Clear it, then force-close and reopen the app:
   - **iPhone/iPad:** *Settings → Companion App → Debug → Clear web view cache*;
   - **Android:** *Settings → Companion App → Troubleshooting → Reset frontend cache*.
+- **Amazon Fire tablets** (app or Silk browser) keep showing *Custom element doesn't exist* even
+  after clearing the cache. Add the card as a dashboard resource once:
+  1. *Settings → Dashboards → ⋮ → Resources → Add resource*. If *Resources* is missing, turn on
+     *Advanced mode* in your user profile.
+  2. URL `/open_omada/open-omada-top-wan-card.js`, type **JavaScript module**.
+  3. Reload the dashboard on the tablet.
+
+  The resource does no harm on other devices.
 
 - Download **diagnostics** from the integration page (secrets, MACs and IPs are redacted).
 - Debug logging:
