@@ -223,6 +223,10 @@ para receber notificação.
 - **Card mostra "Custom element doesn't exist" ou a lista de cards fica girando:** a página foi
   aberta antes do HA terminar de iniciar a integração (logo após um reinício) ou o navegador ficou
   com uma cópia antiga. Recarregue a página (Ctrl/⌘ + Shift + R).
+- **Mesmo erro no app do Home Assistant (celular/tablet):** o app guarda o frontend em cache por
+  mais tempo que o navegador. Limpe o cache e depois feche e abra o app:
+  - **iPhone/iPad:** *Configurações → Companion App → Debug → Clear web view cache*;
+  - **Android:** *Configurações → Companion App → Troubleshooting → Reset frontend cache*.
 
 Baixe os **diagnósticos** na página da integração (segredos, MACs e IPs mascarados) e ative o log
 `custom_components.open_omada: debug`.

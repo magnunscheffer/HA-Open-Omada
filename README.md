@@ -319,6 +319,10 @@ Control measures on its own interval (30 s by default).
 - **Card shows "Custom element doesn't exist" or the card picker keeps spinning:** the page was
   loaded before Home Assistant finished starting the integration (e.g. right after a restart), or
   the browser kept an old copy. Reload the page (Ctrl/⌘ + Shift + R).
+- **Same error in the Home Assistant mobile app:** the app caches the frontend longer than a
+  browser. Clear it, then force-close and reopen the app:
+  - **iPhone/iPad:** *Settings → Companion App → Debug → Clear web view cache*;
+  - **Android:** *Settings → Companion App → Troubleshooting → Reset frontend cache*.
 
 - Download **diagnostics** from the integration page (secrets, MACs and IPs are redacted).
 - Debug logging:
