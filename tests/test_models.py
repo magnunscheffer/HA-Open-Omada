@@ -153,3 +153,34 @@ async def test_top_wan_lookback_uses_latest_window_with_data():
 
     no_lookback = await fetch_top_wan_clients(C(newest=now - 600), "s", window_s=86400, now=now)
     assert no_lookback.clients == [] and no_lookback.data_until == now and not no_lookback.delayed
+
+
+def _wan(port, name, internet, detection, health):
+    return Wan.from_api({"port": port, "name": name, "internetState": internet,
+                         "onlineDetection": detection, "healthLevel": health})
+
+
+def test_failover_uses_online_detection_when_the_link_stays_up():
+    """Primary ISP down behind a modem: internetState stays 1, Online Detection says offline."""
+    lb = {"linkBackup": True, "primaryWans": ["2_abc"], "backupWan": "1_def", "mode": 0}
+    w1, w2 = _wan(1, "WAN1", 1, 1, 0), _wan(2, "WAN/LAN2", 1, 0, 3)
+    apply_wan_roles([w1, w2], lb)
+    assert w2.internet and w2.online_detection is False
+    assert (w2.in_use, w1.in_use) == (False, True)
+
+
+def test_online_detection_zero_everywhere_means_no_data():
+    """An idle backup reports onlineDetection 0 / healthLevel 3: not a failure by itself."""
+    lb = {"linkBackup": True, "primaryWans": ["2_abc"], "backupWan": "1_def", "mode": 0}
+    w1, w2 = _wan(1, "WAN1", 1, 0, 3), _wan(2, "WAN/LAN2", 1, 1, 0)
+    apply_wan_roles([w1, w2], lb)
+    assert (w2.in_use, w1.in_use) == (True, False)
+    w1, w2 = _wan(1, "WAN1", 1, 0, 3), _wan(2, "WAN/LAN2", 1, 0, 3)
+    apply_wan_roles([w1, w2], lb)
+    assert (w2.in_use, w1.in_use) == (True, False)
+
+
+def test_wan_dns_servers_in_use():
+    w = Wan.from_api({"port": 2, "wanPortIpv4Config": {"priDns": "192.0.2.53", "sndDns": "0.0.0.0"}})
+    assert w.dns_servers == ["192.0.2.53"]
+    assert Wan.from_api({"port": 1}).dns_servers == []

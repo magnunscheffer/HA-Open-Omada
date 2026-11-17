@@ -155,7 +155,8 @@ Guidelines:
   **Settings → Repairs**.
 - **Every probe must accept HTTPS (port 443).**
 - **A probe can only be used on one WAN.** One IP can only be pinned to one WAN.
-- **Do not use the DNS servers set on a WAN.** The gateway routes its own WAN DNS servers itself,
+- **Do not use the DNS servers of a WAN**, whether they are set by hand or learned from the ISP.
+  The gateway routes its own WAN DNS servers itself,
   ignoring policy routes, so such a probe cannot be pinned. For example, with `1.1.1.1` set as the
   PPPoE DNS of WAN1, probes to `1.1.1.1` left through WAN2. The options form lists your WAN DNS
   servers, and such probes are skipped and listed in the `skipped_probes` attribute.
@@ -215,6 +216,10 @@ sensor instead.
 - To simulate an outage, disconnect the **ISP side** of the modem (fiber, coax or DSL) and leave
   the Ethernet cable to the gateway connected. If you unplug the gateway cable instead, Omada's own
   failover takes over, and you are not testing Enhanced WAN Control.
+- If **Online Detection** is enabled on the WAN you take down, the gateway may fail over by itself
+  as well. That is fine: the integration reads which WAN is really in use (Omada *Detection*
+  status), so it does not fight the gateway. *&lt;WAN&gt; in use* and *Active WAN* show where
+  traffic goes.
 - Remember that if the WAN you take down is the one in use and nothing switches, your network has
   no internet until you reconnect it.
 - Watch *&lt;WAN&gt; quality*, *WAN failover* and *Last WAN switch*. Only a real switch updates

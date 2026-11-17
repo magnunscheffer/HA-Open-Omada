@@ -131,6 +131,10 @@ class Wan:
     raw: dict[str, Any] = field(repr=False)
     role: str | None = None  # "primary" | "backup" | "load_balance" (from load-balance config)
     in_use: bool | None = None  # carrying traffic right now (derived; None if unknown)
+    # Gateway "Online Detection" result (1 online / 0 offline). 0 is also reported when there is
+    # no detection data (healthLevel 3, e.g. an idle backup WAN), so it is only trusted when
+    # another WAN reports online. None when the field is missing.
+    online_detection: bool | None = None
 
     @property
     def ip_is_public(self) -> bool:
@@ -160,7 +164,14 @@ class Wan:
             latency_ms=d.get("latency"),
             loss_pct=d.get("loss"),
             raw=d,
+            online_detection=None if d.get("onlineDetection") is None else d.get("onlineDetection") == 1,
         )
+
+    @property
+    def dns_servers(self) -> list[str]:
+        """DNS servers in use on this WAN (also the ones learned by DHCP/PPPoE)."""
+        cfg = self.raw.get("wanPortIpv4Config") or {}
+        return [ip for ip in (cfg.get("priDns"), cfg.get("sndDns")) if ip and ip != "0.0.0.0"]
 
 
 @dataclass(slots=True)
@@ -434,20 +445,26 @@ def apply_wan_roles(wans: list[Wan], lb: dict[str, Any] | None) -> str:
     primaries = {p for i in lb.get("primaryWans") or [] if (p := port_of(i)) is not None}
     backup = port_of(lb["backupWan"]) if lb.get("backupWan") else None
     prim = [w for w in wans if w.port in primaries]
+    # Online Detection is only meaningful when some WAN reports online (otherwise: no data).
+    detection_works = any(w.online_detection for w in wans)
+
+    def failed(w: Wan) -> bool:
+        return not w.internet or (detection_works and w.online_detection is False)
+
     # mode 0: backup takes over when ANY primary fails; 1: when ALL fail; other: schedule.
     mode = lb.get("mode")
     if mode == 0:
-        primary_failed = any(not w.internet for w in prim)
+        primary_failed = any(failed(w) for w in prim)
     elif mode == 1:
-        primary_failed = all(not w.internet for w in prim)
+        primary_failed = all(failed(w) for w in prim)
     else:
         primary_failed = None
     for w in wans:
         if w.port in primaries:
-            w.role, w.in_use = "primary", w.internet
+            w.role, w.in_use = "primary", w.internet and not primary_failed
         elif w.port == backup:
             w.role = "backup"
-            w.in_use = None if primary_failed is None else (primary_failed and w.internet)
+            w.in_use = None if primary_failed is None else (primary_failed and not failed(w))
     return "failover"
 
 

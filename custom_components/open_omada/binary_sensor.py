@@ -106,7 +106,13 @@ class OmadaWanBinary(OmadaDeviceEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, object] | None:
-        return {"role": self._wan.role} if self.kind == "in_use" else None
+        if self.kind == "in_use":
+            return {"role": self._wan.role}
+        if self.kind == "internet":
+            # Gateway Online Detection (Omada "Detection"); "offline" can also mean "no data yet".
+            det = self._wan.online_detection
+            return {"online_detection": None if det is None else ("online" if det else "offline")}
+        return None
 
 
 class _PortBinary(OmadaDeviceEntity, BinarySensorEntity):

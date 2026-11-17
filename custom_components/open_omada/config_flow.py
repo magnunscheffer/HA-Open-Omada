@@ -126,10 +126,12 @@ class OmadaOptionsFlow(OptionsFlow):
                 for wan in site.gateways[0].wans:
                     if wan.port in names and wan.name:
                         names[wan.port] = wan.name
+                servers = {ip for wan in site.gateways[0].wans for ip in wan.dns_servers}
                 try:
-                    dns = ", ".join(sorted(await coordinator.client.get_wan_dns_servers(site.site.id)))
+                    servers |= await coordinator.client.get_wan_dns_servers(site.site.id)
                 except OmadaError:
                     LOGGER.debug("Could not read the WAN DNS servers for the options form")
+                dns = ", ".join(sorted(servers))
                 break
         return {"wan1": names[1], "wan2": names[2], "wan_dns": dns or "none found"}
 

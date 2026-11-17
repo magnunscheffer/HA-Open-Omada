@@ -161,6 +161,8 @@ class WanControl:
         except OmadaError as err:
             LOGGER.debug("Could not read the WAN DNS servers: %s", err)
             wan_dns = set()
+        for wan in site.gateways[0].wans:  # DNS learned at runtime (DHCP/PPPoE) are not in the config
+            wan_dns.update(wan.dns_servers)
         self.skipped = {}
         for wan in site.gateways[0].wans:
             if wan.port not in wan_ids:
