@@ -240,3 +240,19 @@ async def test_options_reject_more_than_ten_probes(hass, fake_client, setup):
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], _form({**OPTIONS, "probes_wan1": many}))
     assert result["errors"] == {"base": "probes_too_many"}
+
+
+async def test_gateway_failover_is_not_fought_nor_recorded(hass, fake_client, setup):
+    """Omada's Online Detection moved traffic to the backup; the preferred WAN is still primary."""
+    entry, ctl, quality = setup
+    ctl.mode = "automatic"
+    fake_client.detection = {1: 0, 2: 1}  # WAN1 (primary) offline per the gateway
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert ctl.in_use_port() == 2 and ctl.primary_port() == 1
+    ctl.config.failback_min = 0  # preferred WAN counts as stable: failback would target WAN1
+    await ctl._async_cycle()
+    await hass.async_block_till_done()
+    assert not [c for c in fake_client.calls if c[0] == "set_primary"]
+    assert ctl.last_switch is None
+    assert ctl.status() == "failed_over"

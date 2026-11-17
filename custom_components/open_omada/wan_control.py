@@ -285,7 +285,9 @@ class WanControl:
               and self.stable_minutes(self.preferred_port) >= self.config.failback_min):
             target, reason = self.preferred_port, f"{self.wans[self.preferred_port].name} stable for " \
                                                   f"{self.config.failback_min:g} min"
-        if target is None:
+        if target is None or target == self.primary_port():
+            # Nothing to swap: the target is already the primary (the gateway's own failover moved
+            # the traffic, e.g. Online Detection), so Omada decides when traffic returns to it.
             self._notified = None
             return
         if self.cooldown_left_min() > 0:

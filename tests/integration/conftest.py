@@ -38,6 +38,7 @@ class FakeClient:
         self.groups: dict = {}
         self.routes: list = []
         self.wan_dns: set = set()
+        self.detection: dict = {}  # port -> onlineDetection (1/0), omitted when absent
         self.fail_dpi_auth = False
         self.hide_ap = False
         self.port2_status = 1
@@ -75,6 +76,9 @@ class FakeClient:
         if self.two_wans:
             wans.append({"port": 2, "name": "WAN2", "mode": 0, "status": 1, "internetState": 1, "ip": "203.0.113.9",
                          "proto": "dhcp", "rxRate": 10, "txRate": 1, "latency": 20, "loss": 0.0})
+        for w in wans:
+            if w["port"] in self.detection:
+                w["onlineDetection"] = self.detection[w["port"]]
         return wans
 
     async def get_switch(self, site, mac, agile=False):

@@ -32,6 +32,27 @@ Enhanced WAN Control measures real connections through each WAN. It can then:
 Tested with **one gateway in one site**. With several sites or gateways, only the first site
 that has a gateway with two WANs is controlled, and it may not work as expected.
 
+## Recommended Omada settings
+
+In Omada, under *Internet → Load Balancing*:
+
+| Setting | Recommended | Why |
+|---|---|---|
+| Link Backup | **Enable** | Required (one primary and one backup WAN) |
+| Recover Mode | **Always Link Primary** | After a hard failure handled by the gateway itself, traffic returns to the primary WAN. With *Link Backup*, traffic stays on the backup, and the integration cannot move it back, because the preferred WAN is already the primary |
+| Failover Mode | **Enable backup link when any primary WAN fails** (or *all*: the same with one primary) | Both work. Do **not** use *Timing*: the integration then cannot tell which WAN is in use |
+| Online Detection | **On, on both WANs** | The gateway fails over by itself when a WAN loses the internet. The integration reads this status to know which WAN is really in use |
+
+The two failovers work together:
+
+- **The gateway** handles hard failures, using Online Detection or the link status. It does
+  not change which WAN is primary, and it moves traffic back as soon as the primary is online
+  again.
+- **The integration** also handles bad quality (high latency, loss), which the gateway does not
+  detect. It changes which WAN is primary, and returns only after the failback time.
+- When the gateway has already moved the traffic, the integration does nothing. The status shows
+  `failed_over` until the gateway returns to the primary.
+
 ## How it works
 
 ### 1. Probes are pinned to a WAN
